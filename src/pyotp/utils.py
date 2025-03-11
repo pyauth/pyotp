@@ -68,10 +68,24 @@ def build_uri(
     if is_period_set:
         url_args["period"] = period
 
+    # Parse the image URL to validate it
     if image is not None:
         image_uri = urlparse(image)
-        if image_uri.scheme != "https" or not image_uri.netloc or not image_uri.path:
-            raise ValueError("{} is not a valid url".format(image_uri))
+
+        # Get corresponding error message
+        mgs_error: str | None
+        if image_uri.scheme != "https":
+            mgs_error = "image URL must be HTTPS"
+        elif not image_uri.netloc:
+            mgs_error = "image URL must have a netloc"
+        elif not image_uri.path:
+            mgs_error = "image URL must have a path"
+        else:
+            mgs_error = None
+
+        if mgs_error is not None:
+            raise ValueError("{} is not a valid url: {}".format(image_uri, mgs_error))
+
         url_args["image"] = image
 
     for k, v in kwargs.items():
