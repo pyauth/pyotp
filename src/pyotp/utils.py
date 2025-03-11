@@ -1,18 +1,20 @@
-import unicodedata
 from hmac import compare_digest
 from typing import Dict, Optional, Union
 from urllib.parse import quote, urlencode, urlparse
 
+import unicodedata
+
 
 def build_uri(
-    secret: str,
-    name: str,
-    initial_count: Optional[int] = None,
-    issuer: Optional[str] = None,
-    algorithm: Optional[str] = None,
-    digits: Optional[int] = None,
-    period: Optional[int] = None,
-    **kwargs,
+        secret: str,
+        name: str,
+        initial_count: Optional[int] = None,
+        issuer: Optional[str] = None,
+        algorithm: Optional[str] = None,
+        digits: Optional[int] = None,
+        period: Optional[int] = None,
+        image: Optional[str] = None,
+        **kwargs,
 ) -> str:
     """
     Returns the provisioning URI for the OTP; works for either TOTP or HOTP.
@@ -25,18 +27,19 @@ def build_uri(
     See also:
         https://github.com/google/google-authenticator/wiki/Key-Uri-Format
 
-    :param secret: the hotp/totp secret used to generate the URI
-    :param name: name of the account
+    :param secret: the hotp/totp secret used to generate the URI.
+    :param name: name of the account.
     :param initial_count: starting counter value, defaults to None.
         If none, the OTP type will be assumed as TOTP.
     :param issuer: the name of the OTP issuer; this will be the
-        organization title of the OTP entry in Authenticator
+        organization title of the OTP entry in Authenticator.
     :param algorithm: the algorithm used in the OTP generation.
     :param digits: the length of the OTP generated code.
     :param period: the number of seconds the OTP generator is set to
         expire every code.
-    :param kwargs: other query string parameters to include in the URI
-    :returns: provisioning uri
+    :param image: the URL of the image to be displayed in the OTP.
+    :param kwargs: other query string parameters to include in the URI.
+    :returns: provisioning uri.
     """
     # initial_count may be 0 as a valid param
     is_initial_count_present = initial_count is not None
@@ -64,13 +67,16 @@ def build_uri(
         url_args["digits"] = digits
     if is_period_set:
         url_args["period"] = period
+
+    if image is not None:
+        image_uri = urlparse(image)
+        if image_uri.scheme != "https" or not image_uri.netloc or not image_uri.path:
+            raise ValueError("{} is not a valid url".format(image_uri))
+        url_args["image"] = image
+
     for k, v in kwargs.items():
         if not isinstance(v, str):
             raise ValueError("All otpauth uri parameters must be strings")
-        if k == "image":
-            image_uri = urlparse(v)
-            if image_uri.scheme != "https" or not image_uri.netloc or not image_uri.path:
-                raise ValueError("{} is not a valid url".format(image_uri))
         url_args[k] = v
 
     uri = base_uri.format(otp_type, label, urlencode(url_args).replace("+", "%20"))

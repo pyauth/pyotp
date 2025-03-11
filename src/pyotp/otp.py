@@ -10,12 +10,12 @@ class OTP(object):
     """
 
     def __init__(
-        self,
-        s: str,
-        digits: int = 6,
-        digest: Any = hashlib.sha1,
-        name: Optional[str] = None,
-        issuer: Optional[str] = None,
+            self,
+            s: str,
+            digits: int = 6,
+            digest: Any = hashlib.sha1,
+            name: Optional[str] = None,
+            issuer: Optional[str] = None,
     ) -> None:
         self.digits = digits
         if digits > 10:
@@ -30,7 +30,7 @@ class OTP(object):
     def generate_otp(self, input: int) -> str:
         """
         :param input: the HMAC counter value to use as the OTP input.
-            Usually either the counter, or the computed integer based on the Unix timestamp
+            Usually either the counter, or the computed integer based on the Unix timestamp.
         """
         if input < 0:
             raise ValueError("input must be positive integer")
@@ -40,19 +40,22 @@ class OTP(object):
         hmac_hash = bytearray(hasher.digest())
         offset = hmac_hash[-1] & 0xF
         code = (
-            (hmac_hash[offset] & 0x7F) << 24
-            | (hmac_hash[offset + 1] & 0xFF) << 16
-            | (hmac_hash[offset + 2] & 0xFF) << 8
-            | (hmac_hash[offset + 3] & 0xFF)
+                (hmac_hash[offset] & 0x7F) << 24
+                | (hmac_hash[offset + 1] & 0xFF) << 16
+                | (hmac_hash[offset + 2] & 0xFF) << 8
+                | (hmac_hash[offset + 3] & 0xFF)
         )
-        str_code = str(10_000_000_000 + (code % 10**self.digits))
-        return str_code[-self.digits :]
+        str_code = str(10_000_000_000 + (code % 10 ** self.digits))
+        return str_code[-self.digits:]
 
     def byte_secret(self) -> bytes:
+        """Decode a base32-encoded secret into its raw byte representation."""
         secret = self.secret
         missing_padding = len(secret) % 8
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
+
+        # `casefold=True`, which allows the decoder to process both uppercase and lowercase characters.
         return base64.b32decode(secret, casefold=True)
 
     @staticmethod
@@ -60,7 +63,7 @@ class OTP(object):
         """
         Turns an integer to the OATH specified
         bytestring, which is fed to the HMAC
-        along with the secret
+        along with the secret.
         """
         result = bytearray()
         while i != 0:
