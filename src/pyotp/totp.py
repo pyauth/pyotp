@@ -65,7 +65,7 @@ class TOTP(OTP):
         """
         return self.generate_otp(self.timecode(datetime.datetime.now()))
 
-    def verify(self, otp: str, for_time: Optional[datetime.datetime] = None, valid_window: int = 0) -> bool:
+    def verify(self, otp: str, for_time: Optional[datetime.datetime] = None, valid_window: Optional[int] = 0) -> bool:
         """
         Verifies the OTP passed in against the current time OTP.
 
@@ -76,14 +76,11 @@ class TOTP(OTP):
         """
         if for_time is None:
             for_time = datetime.datetime.now()
-
-        if valid_window:
-            for i in range(-valid_window, valid_window + 1):
-                if utils.strings_equal(str(otp), str(self.at(for_time, i))):
-                    return True
-            return False
-
-        return utils.strings_equal(str(otp), str(self.at(for_time)))
+            
+        for i in range(-valid_window, valid_window + 1):
+            if utils.strings_equal(str(otp), str(self.at(for_time, i))):
+                return True
+        return False
 
     def provisioning_uri(self, name: Optional[str] = None, issuer_name: Optional[str] = None, **kwargs) -> str:
         """
