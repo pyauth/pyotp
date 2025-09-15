@@ -173,6 +173,19 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
         with Timecop(1297553958 + 30):
             self.assertFalse(totp.verify("102705"))
 
+    def test_return_timecode_on_verify(self):
+        totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
+        with Timecop(1297553958):
+            timecode1 = totp.verify("102705", valid_window=1, return_timecode=True)
+            self.assertTrue(isinstance(timecode1, int))
+        with Timecop(1297553958 + 30):
+            timecode2 = totp.verify("102705", valid_window=1, return_timecode=True)
+        self.assertEqual(timecode1, timecode2)
+
+        with Timecop(1297553958 + 60):
+            timecode3 = totp.verify("102705", valid_window=1, return_timecode=True)
+            self.assertFalse(timecode3)
+
     def test_input_before_epoch(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
         # -1 and -29.5 round down to 0 (epoch)
