@@ -48,7 +48,9 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(url.netloc, "hotp")
         self.assertEqual(url.path, "/mark%40percival")
         self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "counter": "0"})
-        self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(hotp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.HOTP)
+        self.assertEqual(hotp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival", initial_count=12)
         url = urlparse(hotp.provisioning_uri())
@@ -56,7 +58,9 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(url.netloc, "hotp")
         self.assertEqual(url.path, "/mark%40percival")
         self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "counter": "12"})
-        self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(hotp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.HOTP)
+        self.assertEqual(hotp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival", issuer="FooCorp!")
         url = urlparse(hotp.provisioning_uri())
@@ -66,7 +70,9 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(
             dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "counter": "0", "issuer": "FooCorp!"}
         )
-        self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(hotp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.HOTP)
+        self.assertEqual(hotp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         key = "c7uxuqhgflpw7oruedmglbrk7u6242vb"
         hotp = pyotp.HOTP(key, digits=8, digest=hashlib.sha256, name="baco@peperina", issuer="FooCorp")
@@ -84,7 +90,9 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
                 "algorithm": "SHA256",
             },
         )
-        self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(hotp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.HOTP)
+        self.assertEqual(hotp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         hotp = pyotp.HOTP(key, digits=8, name="baco@peperina", issuer="Foo Corp", initial_count=10)
         url = urlparse(hotp.provisioning_uri())
@@ -95,7 +103,9 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
             dict(parse_qsl(url.query)),
             {"secret": "c7uxuqhgflpw7oruedmglbrk7u6242vb", "counter": "10", "issuer": "Foo Corp", "digits": "8"},
         )
-        self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(hotp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.HOTP)
+        self.assertEqual(hotp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         code = pyotp.totp.TOTP("S46SQCPPTCNPROMHWYBDCTBZXV")
         self.assertEqual(code.provisioning_uri(), "otpauth://totp/Secret?secret=S46SQCPPTCNPROMHWYBDCTBZXV")
@@ -208,7 +218,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(url.netloc, "totp")
         self.assertEqual(url.path, "/mark%40percival")
         self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr"})
-        self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(totp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.TOTP)
+        self.assertEqual(totp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         totp = pyotp.TOTP("wrn3pqx5uqxqvnqr", name="mark@percival", issuer="FooCorp!")
         url = urlparse(totp.provisioning_uri())
@@ -216,7 +228,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(url.netloc, "totp")
         self.assertEqual(url.path, "/FooCorp%21:mark%40percival")
         self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "issuer": "FooCorp!"})
-        self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(totp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.TOTP)
+        self.assertEqual(totp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         key = "c7uxuqhgflpw7oruedmglbrk7u6242vb"
         totp = pyotp.TOTP(key, digits=8, interval=60, digest=hashlib.sha256, name="baco@peperina", issuer="FooCorp")
@@ -234,7 +248,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
                 "algorithm": "SHA256",
             },
         )
-        self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(totp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.TOTP)
+        self.assertEqual(totp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         totp = pyotp.TOTP(key, digits=8, interval=60, name="baco@peperina", issuer="FooCorp")
         url = urlparse(totp.provisioning_uri())
@@ -245,7 +261,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
             dict(parse_qsl(url.query)),
             {"secret": "c7uxuqhgflpw7oruedmglbrk7u6242vb", "issuer": "FooCorp", "digits": "8", "period": "60"},
         )
-        self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(totp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.TOTP)
+        self.assertEqual(totp.provisioning_uri(), parsed_otp.provisioning_uri())
 
         totp = pyotp.TOTP(key, digits=8, name="baco@peperina", issuer="FooCorp")
         url = urlparse(totp.provisioning_uri())
@@ -256,7 +274,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
             dict(parse_qsl(url.query)),
             {"secret": "c7uxuqhgflpw7oruedmglbrk7u6242vb", "issuer": "FooCorp", "digits": "8"},
         )
-        self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
+        parsed_otp = pyotp.parse_uri(totp.provisioning_uri())
+        assert isinstance(parsed_otp, pyotp.TOTP)
+        self.assertEqual(totp.provisioning_uri(), parsed_otp.provisioning_uri())
 
     def test_random_key_generation(self):
         self.assertEqual(len(pyotp.random_base32()), 32)
@@ -400,6 +420,7 @@ class ParseUriTest(unittest.TestCase):
     @unittest.skipIf(sys.version_info < (3, 6), "Skipping test that requires deterministic dict key enumeration")
     def test_algorithms(self):
         otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBV&algorithm=SHA1")
+        assert isinstance(otp, pyotp.TOTP)
         self.assertEqual(hashlib.sha1, otp.digest)
         self.assertEqual(otp.at(0), "734055")
         self.assertEqual(otp.at(30), "662488")
@@ -408,6 +429,7 @@ class ParseUriTest(unittest.TestCase):
         self.assertEqual(otp.provisioning_uri(name="n", issuer_name="i"), "otpauth://totp/i:n?secret=GEZDGNBV&issuer=i")
 
         otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBV&algorithm=SHA1&period=60")
+        assert isinstance(otp, pyotp.TOTP)
         self.assertEqual(hashlib.sha1, otp.digest)
         self.assertEqual(otp.at(30), "734055")
         self.assertEqual(otp.at(60), "662488")
@@ -416,6 +438,7 @@ class ParseUriTest(unittest.TestCase):
         )
 
         otp = pyotp.parse_uri("otpauth://hotp?algorithm=SHA1&secret=GEZDGNBV&algorithm=SHA1")
+        assert isinstance(otp, pyotp.HOTP)
         self.assertEqual(hashlib.sha1, otp.digest)
         self.assertEqual(otp.at(0), "734055")
         self.assertEqual(otp.at(1), "662488")
@@ -425,6 +448,7 @@ class ParseUriTest(unittest.TestCase):
         )
 
         otp = pyotp.parse_uri("otpauth://hotp?algorithm=SHA1&secret=GEZDGNBV&algorithm=SHA1&counter=1")
+        assert isinstance(otp, pyotp.HOTP)
         self.assertEqual(hashlib.sha1, otp.digest)
         self.assertEqual(otp.at(0), "662488")
         self.assertEqual(otp.at(1), "289363")
@@ -433,11 +457,13 @@ class ParseUriTest(unittest.TestCase):
         )
 
         otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBV&algorithm=SHA256")
+        assert isinstance(otp, pyotp.TOTP)
         self.assertEqual(hashlib.sha256, otp.digest)
         self.assertEqual(otp.at(0), "918961")
         self.assertEqual(otp.at(9000), "934470")
 
         otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBV&algorithm=SHA512")
+        assert isinstance(otp, pyotp.TOTP)
         self.assertEqual(hashlib.sha512, otp.digest)
         self.assertEqual(otp.at(0), "816660")
         self.assertEqual(otp.at(9000), "524153")
@@ -453,7 +479,7 @@ class ParseUriTest(unittest.TestCase):
         self.assertEqual(hashlib.sha512, otp.digest)
 
         otp = pyotp.parse_uri("otpauth://totp/Steam:?secret=FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW&encoder=steam")
-        self.assertEqual(type(otp), pyotp.contrib.Steam)
+        assert isinstance(otp, pyotp.contrib.Steam)
         self.assertEqual(otp.at(0), "C5V56")
         self.assertEqual(otp.at(30), "QJY8Y")
         self.assertEqual(otp.at(60), "R3WQY")
@@ -463,7 +489,7 @@ class ParseUriTest(unittest.TestCase):
         otp = pyotp.parse_uri(
             "otpauth://totp/Steam:?secret=FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW&period=15&digits=7&encoder=steam"
         )
-        self.assertEqual(type(otp), pyotp.contrib.Steam)
+        assert isinstance(otp, pyotp.contrib.Steam)
         self.assertEqual(otp.at(0), "C5V56")
         self.assertEqual(otp.at(30), "QJY8Y")
         self.assertEqual(otp.at(60), "R3WQY")
