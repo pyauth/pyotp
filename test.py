@@ -331,8 +331,8 @@ class SteamTOTP(unittest.TestCase):
             self.assertFalse(steam.verify("4MK54"))
 
 
-class CompareDigestTest(unittest.TestCase):
-    method = staticmethod(pyotp.utils.compare_digest)
+class StringComparisonTest(unittest.TestCase):
+    method = staticmethod(pyotp.utils.strings_equal)
 
     def test_comparisons(self):
         self.assertTrue(self.method("", ""))
@@ -342,10 +342,6 @@ class CompareDigestTest(unittest.TestCase):
         self.assertFalse(self.method("", "a"))
         self.assertFalse(self.method("a", ""))
         self.assertFalse(self.method("a" * 999 + "b", "a" * 1000))
-
-
-class StringComparisonTest(CompareDigestTest):
-    method = staticmethod(pyotp.utils.strings_equal)
 
     def test_fullwidth_input(self):
         self.assertTrue(self.method("ｘs１２３45", "xs12345"))
