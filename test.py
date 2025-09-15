@@ -151,7 +151,7 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_match_rfc(self):
         for digest, secret in self.RFC_VALUES:
-            totp = pyotp.TOTP(base64.b32encode(secret), 8, digest)
+            totp = pyotp.TOTP(base64.b32encode(secret).decode(), 8, digest)
             for utime, code in self.RFC_VALUES[(digest, secret)]:
                 if utime > sys.maxsize:
                     warn(
