@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 import base64
+import contextlib
 import datetime
 import hashlib
 import os
 import sys
-import unittest
+import typing
+import unittest.mock
 from urllib.parse import parse_qsl, urlparse
 from warnings import warn
 
@@ -172,27 +174,27 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_match_google_authenticator_output(self):
         totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
-        with Timecop(1297553958):
+        with timecop(1297553958):
             self.assertEqual(totp.now(), "102705")
 
     def test_validate_totp(self):
         totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
-        with Timecop(1297553958):
+        with timecop(1297553958):
             self.assertTrue(totp.verify("102705"))
             self.assertTrue(totp.verify("102705"))
-        with Timecop(1297553958 + 30):
+        with timecop(1297553958 + 30):
             self.assertFalse(totp.verify("102705"))
 
     def test_return_timecode_on_verify(self):
         totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
-        with Timecop(1297553958):
+        with timecop(1297553958):
             timecode1 = totp.verify("102705", valid_window=1, return_timecode=True)
             self.assertTrue(isinstance(timecode1, int))
-        with Timecop(1297553958 + 30):
+        with timecop(1297553958 + 30):
             timecode2 = totp.verify("102705", valid_window=1, return_timecode=True)
         self.assertEqual(timecode1, timecode2)
 
-        with Timecop(1297553958 + 60):
+        with timecop(1297553958 + 60):
             timecode3 = totp.verify("102705", valid_window=1, return_timecode=True)
             self.assertFalse(timecode3)
 
@@ -206,9 +208,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_validate_totp_with_digit_length(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
-        with Timecop(1111111111):
+        with timecop(1111111111):
             self.assertTrue(totp.verify("050471"))
-        with Timecop(1297553958 + 30):
+        with timecop(1297553958 + 30):
             self.assertFalse(totp.verify("050471"))
 
     def test_provisioning_uri(self):
@@ -307,25 +309,25 @@ class SteamTOTP(unittest.TestCase):
 
     def test_verify(self):
         steam = pyotp.contrib.Steam("BASE32SECRET3232")
-        with Timecop(1662883100):
+        with timecop(1662883100):
             self.assertTrue(steam.verify("N3G63"))
-        with Timecop(1662883100 + 30):
+        with timecop(1662883100 + 30):
             self.assertFalse(steam.verify("N3G63"))
 
-        with Timecop(946681223):
+        with timecop(946681223):
             self.assertTrue(steam.verify("7VP3X"))
-        with Timecop(946681223 + 30):
+        with timecop(946681223 + 30):
             self.assertFalse(steam.verify("7VP3X"))
 
         steam = pyotp.contrib.Steam("FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW")
-        with Timecop(1662884261):
+        with timecop(1662884261):
             self.assertTrue(steam.verify("V6WKJ"))
-        with Timecop(1662884261 + 30):
+        with timecop(1662884261 + 30):
             self.assertFalse(steam.verify("V6WKJ"))
 
-        with Timecop(946681223):
+        with timecop(946681223):
             self.assertTrue(steam.verify("4MK54"))
-        with Timecop(946681223 + 30):
+        with timecop(946681223 + 30):
             self.assertFalse(steam.verify("4MK54"))
 
 
@@ -498,29 +500,15 @@ class ParseUriTest(unittest.TestCase):
         pyotp.parse_uri("otpauth://totp?secret=abc&image=foobar")
 
 
-class Timecop(object):
-    """
-    Half-assed clone of timecop.rb, just enough to pass our tests.
-    """
+@contextlib.contextmanager
+def timecop(freeze_timestamp: int) -> typing.Generator[None, None, None]:
+    class FrozenDateTime(datetime.datetime):
+        @classmethod
+        def now(cls, tz: datetime.tzinfo | None = None) -> "FrozenDateTime":
+            return cls.fromtimestamp(freeze_timestamp, tz=tz)
 
-    def __init__(self, freeze_timestamp):
-        self.freeze_timestamp = freeze_timestamp
-
-    def __enter__(self):
-        self.real_datetime = datetime.datetime
-        datetime.datetime = self.frozen_datetime()
-
-    def __exit__(self, type, value, traceback):
-        datetime.datetime = self.real_datetime
-
-    def frozen_datetime(self):
-        class FrozenDateTime(datetime.datetime):
-            @classmethod
-            def now(cls, **kwargs):
-                return cls.fromtimestamp(timecop.freeze_timestamp)
-
-        timecop = self
-        return FrozenDateTime
+    with unittest.mock.patch("datetime.datetime", FrozenDateTime):
+        yield
 
 
 if __name__ == "__main__":
