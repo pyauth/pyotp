@@ -38,7 +38,7 @@ class TOTP(OTP):
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 
-    def at(self, for_time: Union[int, datetime.datetime], counter_offset: int = 0) -> str:
+    def at(self, for_time: Union[float, datetime.datetime], counter_offset: int = 0) -> str:
         """
         Accepts either a Unix timestamp integer or a datetime object.
 
@@ -69,24 +69,24 @@ class TOTP(OTP):
     def verify(
         self,
         otp: str,
-        for_time: Optional[Union[datetime.datetime, int]],
-        valid_window: int,
-        return_timecode: Literal[False],
+        for_time: Optional[Union[datetime.datetime, float]] = None,
+        valid_window: int = 0,
+        return_timecode: Literal[False] = False,
     ) -> bool: ...
 
     @overload
     def verify(
         self,
         otp: str,
-        for_time: Optional[Union[datetime.datetime, int]],
-        valid_window: int,
-        return_timecode: Literal[True],
+        for_time: Optional[Union[datetime.datetime, float]] = None,
+        valid_window: int = 0,
+        return_timecode: Literal[True] = True,
     ) -> Literal[False] | int: ...
 
     def verify(
         self,
         otp: str,
-        for_time: Optional[Union[datetime.datetime, int]] = None,
+        for_time: Optional[Union[datetime.datetime, float]] = None,
         valid_window: int = 0,
         return_timecode: bool = False,
     ) -> bool | int:
