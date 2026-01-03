@@ -2,7 +2,7 @@ import calendar
 import datetime
 import hashlib
 import time
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union, overload
 
 from . import utils
 from .otp import OTP
@@ -38,7 +38,7 @@ class TOTP(OTP):
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 
-    def at(self, for_time: Union[int, datetime.datetime], counter_offset: int = 0) -> str:
+    def at(self, for_time: Union[float, datetime.datetime], counter_offset: int = 0) -> str:
         """
         Accepts either a Unix timestamp integer or a datetime object.
 
@@ -65,25 +65,53 @@ class TOTP(OTP):
         """
         return self.generate_otp(self.timecode(datetime.datetime.now()))
 
-    def verify(self, otp: str, for_time: Optional[datetime.datetime] = None, valid_window: int = 0) -> bool:
+    @overload
+    def verify(
+        self,
+        otp: str,
+        for_time: Optional[Union[datetime.datetime, float]] = None,
+        valid_window: int = 0,
+        return_timecode: Literal[False] = False,
+    ) -> bool: ...
+
+    @overload
+    def verify(
+        self,
+        otp: str,
+        for_time: Optional[Union[datetime.datetime, float]] = None,
+        valid_window: int = 0,
+        return_timecode: Literal[True] = True,
+    ) -> Literal[False] | int: ...
+
+    def verify(
+        self,
+        otp: str,
+        for_time: Optional[Union[datetime.datetime, float]] = None,
+        valid_window: int = 0,
+        return_timecode: bool = False,
+    ) -> bool | int:
         """
         Verifies the OTP passed in against the current time OTP.
 
         :param otp: the OTP to check against
         :param for_time: Time to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
-        :returns: True if verification succeeded, False otherwise
+        :param return_timecode: if True, on success return the timecode of the OTP (to be used to prevent replay attacks)
+        :returns: True or the matching timecode if verification succeeded (depending on return_timecode), False otherwise
         """
         if for_time is None:
             for_time = datetime.datetime.now()
+        elif not isinstance(for_time, datetime.datetime):
+            for_time = datetime.datetime.fromtimestamp(int(for_time))
 
-        if valid_window:
-            for i in range(-valid_window, valid_window + 1):
-                if utils.strings_equal(str(otp), str(self.at(for_time, i))):
+        base_timecode = self.timecode(for_time)
+        for i in range(-valid_window, valid_window + 1):
+            if utils.strings_equal(str(otp), str(self.generate_otp(base_timecode + i))):
+                if return_timecode:
+                    return base_timecode + i
+                else:
                     return True
-            return False
-
-        return utils.strings_equal(str(otp), str(self.at(for_time)))
+        return False
 
     def provisioning_uri(self, name: Optional[str] = None, issuer_name: Optional[str] = None, **kwargs) -> str:
         """

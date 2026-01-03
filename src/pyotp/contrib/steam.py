@@ -13,7 +13,12 @@ class Steam(TOTP):
     """
 
     def __init__(
-        self, s: str, name: Optional[str] = None, issuer: Optional[str] = None, interval: int = 30, digits: int = 5
+        self,
+        s: str,
+        name: Optional[str] = None,
+        issuer: Optional[str] = None,
+        interval: int = 30,
+        digits: int = 5,
     ) -> None:
         """
         :param s: secret in base32 format
