@@ -11,13 +11,13 @@ class HOTP(OTP):
     """
 
     def __init__(
-        self,
-        s: str,
-        digits: int = 6,
-        digest: Any = None,
-        name: Optional[str] = None,
-        issuer: Optional[str] = None,
-        initial_count: int = 0,
+            self,
+            s: str,
+            digits: int = 6,
+            digest: Any = None,
+            name: Optional[str] = None,
+            issuer: Optional[str] = None,
+            initial_count: int = 0,
     ) -> None:
         """
         :param s: secret in base32 format
@@ -39,8 +39,8 @@ class HOTP(OTP):
         """
         Generates the OTP for the given count.
 
-        :param count: the OTP HMAC counter
-        :returns: OTP
+        :param count: the OTP HMAC counter.
+        :returns: OTP instance.
         """
         return self.generate_otp(self.initial_count + count)
 
@@ -48,17 +48,18 @@ class HOTP(OTP):
         """
         Verifies the OTP passed in against the current counter OTP.
 
-        :param otp: the OTP to check against
-        :param counter: the OTP HMAC counter
+        :param otp: the OTP to check against.
+        :param counter: the OTP HMAC counter.
         """
         return utils.strings_equal(str(otp), str(self.at(counter)))
 
     def provisioning_uri(
-        self,
-        name: Optional[str] = None,
-        initial_count: Optional[int] = None,
-        issuer_name: Optional[str] = None,
-        **kwargs,
+            self,
+            name: Optional[str] = None,
+            initial_count: Optional[int] = None,
+            issuer_name: Optional[str] = None,
+            image: Optional[str] = None,
+            **kwargs,
     ) -> str:
         """
         Returns the provisioning URI for the OTP.  This can then be
@@ -68,11 +69,12 @@ class HOTP(OTP):
         See also:
             https://github.com/google/google-authenticator/wiki/Key-Uri-Format
 
-        :param name: name of the user account
-        :param initial_count: starting HMAC counter value, defaults to 0
+        :param name: name of the user account.
+        :param initial_count: starting HMAC counter value, defaults to 0.
         :param issuer_name: the name of the OTP issuer; this will be the
-            organization title of the OTP entry in Authenticator
-        :returns: provisioning URI
+            organization title of the OTP entry in Authenticator.
+        :param image: the URL of the image to be displayed in the OTP.
+        :returns: provisioning URI.
         """
         return utils.build_uri(
             self.secret,
@@ -81,5 +83,6 @@ class HOTP(OTP):
             issuer=issuer_name if issuer_name else self.issuer,
             algorithm=self.digest().name,
             digits=self.digits,
+            image=image,
             **kwargs,
         )

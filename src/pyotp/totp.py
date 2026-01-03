@@ -14,20 +14,20 @@ class TOTP(OTP):
     """
 
     def __init__(
-        self,
-        s: str,
-        digits: int = 6,
-        digest: Any = None,
-        name: Optional[str] = None,
-        issuer: Optional[str] = None,
-        interval: int = 30,
+            self,
+            s: str,
+            digits: int = 6,
+            digest: Any = None,
+            name: Optional[str] = None,
+            issuer: Optional[str] = None,
+            interval: int = 30,
     ) -> None:
         """
-        :param s: secret in base32 format
+        :param s: secret in base32 format.
         :param digits: number of integers in the OTP. Some apps expect this to be 6 digits, others support more.
-        :param digest: digest function to use in the HMAC (expected to be SHA1)
-        :param name: account name
-        :param issuer: issuer
+        :param digest: digest function to use in the HMAC (expected to be SHA1).
+        :param name: account name.
+        :param issuer: issuer.
         :param interval: the time interval in seconds for OTP. This defaults to 30.
         """
         if digest is None:
@@ -49,9 +49,9 @@ class TOTP(OTP):
             totp = pyotp.TOTP(...)
             time_remaining = totp.interval - datetime.datetime.now().timestamp() % totp.interval
 
-        :param for_time: the time to generate an OTP for
-        :param counter_offset: the amount of ticks to add to the time counter
-        :returns: OTP value
+        :param for_time: the time to generate an OTP for.
+        :param counter_offset: the amount of ticks to add to the time counter.
+        :returns: OTP value.
         """
         if not isinstance(for_time, datetime.datetime):
             for_time = datetime.datetime.fromtimestamp(int(for_time))
@@ -59,9 +59,9 @@ class TOTP(OTP):
 
     def now(self) -> str:
         """
-        Generate the current time OTP
+        Generate the current time OTP.
 
-        :returns: OTP value
+        :returns: OTP value.
         """
         return self.generate_otp(self.timecode(datetime.datetime.now()))
 
@@ -69,10 +69,10 @@ class TOTP(OTP):
         """
         Verifies the OTP passed in against the current time OTP.
 
-        :param otp: the OTP to check against
-        :param for_time: Time to check OTP at (defaults to now)
-        :param valid_window: extends the validity to this many counter ticks before and after the current one
-        :returns: True if verification succeeded, False otherwise
+        :param otp: the OTP to check against.
+        :param for_time: Time to check OTP at (defaults to now).
+        :param valid_window: extends the validity to this many counter ticks before and after the current one.
+        :returns: True if verification succeeded, False otherwise.
         """
         if for_time is None:
             for_time = datetime.datetime.now()
@@ -85,7 +85,8 @@ class TOTP(OTP):
 
         return utils.strings_equal(str(otp), str(self.at(for_time)))
 
-    def provisioning_uri(self, name: Optional[str] = None, issuer_name: Optional[str] = None, **kwargs) -> str:
+    def provisioning_uri(self, name: Optional[str] = None, issuer_name: Optional[str] = None,
+                         image: Optional[str] = None, **kwargs) -> str:
         """
         Returns the provisioning URI for the OTP.  This can then be
         encoded in a QR Code and used to provision an OTP app like
@@ -93,7 +94,12 @@ class TOTP(OTP):
 
         See also:
             https://github.com/google/google-authenticator/wiki/Key-Uri-Format
-
+        :param name: name of the user account.
+        :param issuer_name: the name of the OTP issuer; this will be the
+            organization title of the OTP entry in Authenticator.
+        :param image: the URL of the image to be displayed in the OTP.
+        :param kwargs: other query string parameters to include in the URI.
+        :returns: provisioning URI.
         """
         return utils.build_uri(
             self.secret,
@@ -102,6 +108,7 @@ class TOTP(OTP):
             algorithm=self.digest().name,
             digits=self.digits,
             period=self.interval,
+            image=image,
             **kwargs,
         )
 
@@ -110,7 +117,6 @@ class TOTP(OTP):
         Accepts either a timezone naive (`for_time.tzinfo is None`) or
         a timezone aware datetime as argument and returns the
         corresponding counter value (timecode).
-
         """
         if for_time.tzinfo:
             return int(calendar.timegm(for_time.utctimetuple()) / self.interval)

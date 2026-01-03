@@ -13,13 +13,16 @@ class Steam(TOTP):
     """
 
     def __init__(
-        self, s: str, name: Optional[str] = None, issuer: Optional[str] = None, interval: int = 30, digits: int = 5
+            self, s: str, name: Optional[str] = None, issuer: Optional[str] = None, interval: int = 30, digits: int = 10
     ) -> None:
         """
-        :param s: secret in base32 format
+        :param s: secret in base32 format.
         :param interval: the time interval in seconds for OTP. This defaults to 30.
-        :param name: account name
-        :param issuer: issuer
+        :param name: account name.
+        :param issuer: issuer.
+        :param digits: This parameter is ignored. Steam requires OTPs to be exactly 10 digits long, 
+                so this value is hardcoded to 10 internally. It is only retained for 
+                compatibility with the `pyotp.totp.TOTP` interface.
         """
         self.interval = interval
         super().__init__(s=s, digits=10, digest=hashlib.sha1, name=name, issuer=issuer)
@@ -27,7 +30,7 @@ class Steam(TOTP):
     def generate_otp(self, input: int) -> str:
         """
         :param input: the HMAC counter value to use as the OTP input.
-            Usually either the counter, or the computed integer based on the Unix timestamp
+            Usually either the counter, or the computed integer based on the Unix timestamp.
         """
         int_code = int(super().generate_otp(input))
         total_chars = len(STEAM_CHARS)
