@@ -49,19 +49,26 @@ def parse_uri(uri: str) -> OTP:
     # Data we'll parse to the correct constructor
     otp_data: Dict[str, Any] = {}
 
-    # Parse with URLlib
-    parsed_uri = urlparse(unquote(uri))
+    # Parse the URI structure first, then unquote individual components.
+    # Unquoting the whole URI before splitting the label would turn an
+    # encoded colon (%3A) inside the issuer or account name into a literal
+    # ":" and mis-parse the issuer:account separator (see GitHub issue #174).
+    parsed_uri = urlparse(uri)
 
     if parsed_uri.scheme != "otpauth":
         raise ValueError("Not an otpauth URI")
 
-    # Parse issuer/accountname info
-    accountinfo_parts = split(":|%3A", parsed_uri.path[1:], maxsplit=1)
+    # Parse issuer/accountname info. The label uses a literal ":" as the
+    # issuer:account separator; a percent-encoded "%3A" is a colon that is
+    # part of the issuer or account name, not a separator. Split on the
+    # literal ":" while the components are still percent-encoded, then
+    # unquote each component on its own.
+    accountinfo_parts = split(":", parsed_uri.path[1:], maxsplit=1)
     if len(accountinfo_parts) == 1:
-        otp_data["name"] = accountinfo_parts[0]
+        otp_data["name"] = unquote(accountinfo_parts[0])
     else:
-        otp_data["issuer"] = accountinfo_parts[0]
-        otp_data["name"] = accountinfo_parts[1]
+        otp_data["issuer"] = unquote(accountinfo_parts[0])
+        otp_data["name"] = unquote(accountinfo_parts[1])
 
     # Parse values
     for key, value in parse_qsl(parsed_uri.query):

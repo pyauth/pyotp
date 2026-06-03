@@ -458,6 +458,32 @@ class ParseUriTest(unittest.TestCase):
 
         pyotp.parse_uri("otpauth://totp?secret=abc&image=foobar")
 
+    def test_parse_encoded_colon_in_label(self):
+        # Regression test for issue #174: an encoded colon (%3A) inside the
+        # issuer or account name must not be treated as the issuer:account
+        # separator. The label issuer and the query issuer should still match.
+        otp = pyotp.parse_uri(
+            "otpauth://totp/Text%3A%20More%20Text:Secret?secret=FFFFFFFAAAAAABBBBBBB&issuer=Text%3A%20More%20Text"
+        )
+        self.assertEqual(otp.name, "Secret")
+        self.assertEqual(otp.issuer, "Text: More Text")
+
+        # An encoded colon in the account name (no issuer) is kept intact.
+        otp = pyotp.parse_uri("otpauth://totp/a%3Ab?secret=GEZDGNBV")
+        self.assertEqual(otp.name, "a:b")
+        self.assertIsNone(otp.issuer)
+
+        # Round-trip: building the URI and parsing it back preserves both parts.
+        source = pyotp.TOTP("FFFFFFFAAAAAABBBBBBB", name="Secret", issuer="Text: More Text")
+        roundtrip = pyotp.parse_uri(source.provisioning_uri())
+        self.assertEqual(roundtrip.name, "Secret")
+        self.assertEqual(roundtrip.issuer, "Text: More Text")
+
+        # A percent-encoded space in a plain issuer (no colon) still decodes.
+        otp = pyotp.parse_uri("otpauth://totp/Big%20Corp:bob?secret=GEZDGNBV&issuer=Big%20Corp")
+        self.assertEqual(otp.name, "bob")
+        self.assertEqual(otp.issuer, "Big Corp")
+
 
 class Timecop(object):
     """
