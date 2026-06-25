@@ -97,6 +97,11 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
         )
         self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
 
+        # initial_count=0 must be respected even though 0 is falsy
+        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival", initial_count=7)
+        url = urlparse(hotp.provisioning_uri(initial_count=0))
+        self.assertEqual(dict(parse_qsl(url.query))["counter"], "0")
+
         code = pyotp.totp.TOTP("S46SQCPPTCNPROMHWYBDCTBZXV")
         self.assertEqual(code.provisioning_uri(), "otpauth://totp/Secret?secret=S46SQCPPTCNPROMHWYBDCTBZXV")
         code.verify("123456")
