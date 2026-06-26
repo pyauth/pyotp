@@ -2,7 +2,7 @@ import calendar
 import datetime
 import hashlib
 import time
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from . import utils
 from .otp import OTP
@@ -40,7 +40,7 @@ class TOTP(OTP):
 
     def at(self, for_time: Union[int, datetime.datetime], counter_offset: int = 0) -> str:
         """
-        Accepts either a Unix timestamp integer or a datetime object.
+        Accepts either a Unix timestamp or a datetime object.
 
         To get the time until the next timecode change (seconds until the current OTP expires), use this instead:
 
@@ -84,6 +84,35 @@ class TOTP(OTP):
             return False
 
         return utils.strings_equal(str(otp), str(self.at(for_time)))
+
+    def verify_and_get_timecode(
+        self, otp: str, for_time: Optional[Union[int, datetime.datetime]] = None, valid_window: int = 0
+    ) -> int | Literal[False]:
+        """
+        Verifies the OTP passed in against the current time OTP and returns the matching timecode.
+
+        This is useful when callers need to prevent TOTP reuse. An
+        application can store the timecode from the last successful
+        authentication and reject future OTPs whose matching timecode
+        is not greater than the stored one.
+
+        :param otp: the OTP to check against
+        :param for_time: Time to check OTP at (defaults to now); accepts datetime or Unix timestamp
+        :param valid_window: extends the validity to this counter ticks before and after the current one
+        :returns: matching timecode if verification succeeded, False otherwise
+        """
+        if for_time is None:
+            for_time = datetime.datetime.now()
+        elif isinstance(for_time, (float, int)):
+            for_time = datetime.datetime.fromtimestamp(int(for_time))
+
+        if valid_window < 0:
+            raise ValueError("valid_window cannot be negative")
+
+        for i in range(-valid_window, valid_window + 1):
+            if utils.strings_equal(str(otp), str(self.at(for_time, i))):
+                return self.timecode(for_time) + i
+        return False
 
     def provisioning_uri(self, name: Optional[str] = None, issuer_name: Optional[str] = None, **kwargs) -> str:
         """

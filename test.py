@@ -335,6 +335,15 @@ class ValidWindowTest(unittest.TestCase):
         self.assertFalse(totp.verify("195979", 200, 1))
 
 
+class GetTimeCodeTest(unittest.TestCase):
+    def test_timecode(self):
+        totp = pyotp.TOTP("ABCDEFGH")
+        self.assertEqual(totp.verify_and_get_timecode("451564", 200, 1), 5)
+        self.assertEqual(totp.verify_and_get_timecode("028307", 200, 1), 6)
+        self.assertEqual(totp.verify_and_get_timecode("681610", 200, 1), 7)
+        self.assertFalse(totp.verify_and_get_timecode("195979", 200, 1))
+
+
 class DigestFunctionTest(unittest.TestCase):
     def test_md5(self):
         with self.assertRaises(ValueError) as cm:
