@@ -38,7 +38,7 @@ class TOTP(OTP):
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 
-    def at(self, for_time: Union[int, datetime.datetime], counter_offset: int = 0) -> str:
+    def at(self, for_time: Union[float, datetime.datetime], counter_offset: int = 0) -> str:
         """
         Accepts either a Unix timestamp or a datetime object.
 
@@ -65,7 +65,9 @@ class TOTP(OTP):
         """
         return self.generate_otp(self.timecode(datetime.datetime.now()))
 
-    def verify(self, otp: str, for_time: Optional[datetime.datetime] = None, valid_window: int = 0) -> bool:
+    def verify(
+        self, otp: str, for_time: Optional[Union[float, datetime.datetime]] = None, valid_window: int = 0
+    ) -> bool:
         """
         Verifies the OTP passed in against the current time OTP.
 
@@ -86,7 +88,7 @@ class TOTP(OTP):
         return utils.strings_equal(str(otp), str(self.at(for_time)))
 
     def verify_and_get_timecode(
-        self, otp: str, for_time: Optional[Union[int, datetime.datetime]] = None, valid_window: int = 0
+        self, otp: str, for_time: Optional[Union[float, datetime.datetime]] = None, valid_window: int = 0
     ) -> int | Literal[False]:
         """
         Verifies the OTP passed in against the current time OTP and returns the matching timecode.

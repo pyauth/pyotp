@@ -5,7 +5,7 @@ test_deps:
 
 lint:
 	ruff check src
-	mypy --install-types --non-interactive --check-untyped-defs src
+	mypy --install-types --non-interactive --check-untyped-defs src test.py
 
 test:
 	coverage run --branch --include 'src/*' -m unittest discover -s test -v
