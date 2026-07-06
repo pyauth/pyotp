@@ -65,7 +65,9 @@ class TOTP(OTP):
         """
         return self.generate_otp(self.timecode(datetime.datetime.now()))
 
-    def verify(self, otp: str, for_time: Optional[datetime.datetime] = None, valid_window: int = 0) -> bool:
+    def verify(
+        self, otp: str, for_time: Optional[Union[int, datetime.datetime]] = None, valid_window: int = 0
+    ) -> bool:
         """
         Verifies the OTP passed in against the current time OTP.
 
