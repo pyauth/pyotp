@@ -277,6 +277,32 @@ class SteamTOTP(unittest.TestCase):
         self.assertEqual(steam.at(60), "R3WQY")
         self.assertEqual(steam.at(90), "JG3T3")
 
+    def test_provisioning_uri(self):
+        steam = pyotp.contrib.Steam("FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW", name="alice")
+
+        url = urlparse(steam.provisioning_uri())
+        self.assertEqual(url.scheme, "otpauth")
+        self.assertEqual(url.netloc, "totp")
+        self.assertEqual(url.path, "/alice")
+        self.assertEqual(
+            dict(parse_qsl(url.query)),
+            {"secret": "FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW", "encoder": "steam"},
+        )
+
+        # The emitted URI must round-trip back to an equivalent Steam instance.
+        parsed = pyotp.parse_uri(steam.provisioning_uri())
+        self.assertEqual(type(parsed), pyotp.contrib.Steam)
+        self.assertEqual(steam.provisioning_uri(), parsed.provisioning_uri())
+        for timestamp in (0, 30, 60, 90):
+            self.assertEqual(parsed.at(timestamp), steam.at(timestamp))
+
+        steam = pyotp.contrib.Steam("FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW", name="alice", issuer="Steam")
+        url = urlparse(steam.provisioning_uri())
+        self.assertEqual(url.path, "/Steam:alice")
+        parsed = pyotp.parse_uri(steam.provisioning_uri())
+        self.assertEqual(type(parsed), pyotp.contrib.Steam)
+        self.assertEqual(steam.provisioning_uri(), parsed.provisioning_uri())
+
     def test_verify(self):
         steam = pyotp.contrib.Steam("BASE32SECRET3232")
         with Timecop(1662883100):

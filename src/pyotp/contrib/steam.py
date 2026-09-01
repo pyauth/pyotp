@@ -1,6 +1,7 @@
 import hashlib
 from typing import Optional
 
+from .. import utils
 from ..totp import TOTP
 
 STEAM_CHARS = "23456789BCDFGHJKMNPQRTVWXY"  # steam's custom alphabet
@@ -23,6 +24,29 @@ class Steam(TOTP):
         """
         self.interval = interval
         super().__init__(s=s, digits=10, digest=hashlib.sha1, name=name, issuer=issuer)
+
+    def provisioning_uri(self, name: Optional[str] = None, issuer_name: Optional[str] = None, **kwargs) -> str:
+        """
+        Returns the provisioning URI for this Steam OTP.
+
+        This differs from :meth:`pyotp.totp.TOTP.provisioning_uri` in two ways, so that the URI
+        round-trips back through :func:`pyotp.parse_uri` as a ``Steam`` instance:
+
+        * ``encoder=steam`` is included, which is what ``parse_uri()`` uses to select this class.
+        * ``digits`` is omitted. ``self.digits`` is 10 because the Steam code is derived from a
+          10-digit HOTP value, but that is an internal detail; the code shown to the user is 5
+          characters from a custom alphabet, and ``digits=10`` is not a legal value for the
+          ``otpauth://`` ``digits`` parameter.
+        """
+        kwargs.setdefault("encoder", "steam")
+        return utils.build_uri(
+            self.secret,
+            name if name else self.name,
+            issuer=issuer_name if issuer_name else self.issuer,
+            algorithm=self.digest().name,
+            period=self.interval,
+            **kwargs,
+        )
 
     def generate_otp(self, input: int) -> str:
         """
