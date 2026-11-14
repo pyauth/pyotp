@@ -91,11 +91,13 @@ A helper function is provided to generate a 32-character base32 secret, compatib
 OTP apps:
 
 .. code:: python
+
     pyotp.random_base32()
 
 Some applications want the secret key to be formatted as a hex-encoded string:
 
 .. code:: python
+
     pyotp.random_hex()  # returns a 40-character hex-encoded secret
 
 Google Authenticator Compatible
@@ -103,6 +105,8 @@ Google Authenticator Compatible
 
 PyOTP works with the Google Authenticator iPhone and Android app, as well as other OTP apps like Authy. PyOTP includes
 the ability to generate provisioning URIs for use with the QR Code scanner built into these MFA client apps:
+
+.. code:: python
 
     pyotp.totp.TOTP('JBSWY3DPEHPK3PXP').provisioning_uri(name='alice@google.com', issuer_name='Secure App')
 
@@ -116,6 +120,8 @@ This URL can then be rendered as a QR Code (for example, using https://github.co
 scanned and added to the users list of OTP credentials.
 
 Parsing these URLs is also supported:
+
+.. code:: python
 
     pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App')
 
@@ -133,6 +139,7 @@ Scan the following barcode with your phone's OTP app (e.g. Google Authenticator)
 .. image:: https://quickchart.io/qr?size=250&text=otpauth%3A%2F%2Ftotp%2Falice%40google.com%3Fsecret%3DJBSWY3DPEHPK3PXP
 
 Now run the following and compare the output:
+
 .. code:: python
 
     import pyotp
