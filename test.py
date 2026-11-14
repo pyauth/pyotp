@@ -6,11 +6,12 @@ import hashlib
 import os
 import sys
 import unittest
+from typing import ClassVar
 from urllib.parse import parse_qsl, urlparse
 from warnings import warn
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-import pyotp  # noqa
+import pyotp
 
 
 class HOTPExampleValuesFromTheRFC(unittest.TestCase):
@@ -117,7 +118,7 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
 
 
 class TOTPExampleValuesFromTheRFC(unittest.TestCase):
-    RFC_VALUES = {
+    RFC_VALUES: ClassVar[dict] = {
         (hashlib.sha1, b"12345678901234567890"): (
             (59, "94287082"),
             (1111111109, "07081804"),
@@ -249,6 +250,15 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
             {"secret": "c7uxuqhgflpw7oruedmglbrk7u6242vb", "issuer": "FooCorp", "digits": "8"},
         )
         self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
+
+    def test_provisioning_uri_parameter_types(self):
+        for otp_type in (pyotp.TOTP, pyotp.HOTP):
+            with self.subTest(otp_type=otp_type):
+                otp = otp_type("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+                with self.assertRaises(TypeError):
+                    otp.provisioning_uri(image=123)
+                with self.assertRaises(ValueError):
+                    otp.provisioning_uri(image="not-a-url")
 
     def test_random_key_generation(self):
         self.assertEqual(len(pyotp.random_base32()), 32)
@@ -499,7 +509,7 @@ class ParseUriTest(unittest.TestCase):
         self.assertEqual(otp.issuer, "Big Corp")
 
 
-class Timecop(object):
+class Timecop:
     """
     Half-assed clone of timecop.rb, just enough to pass our tests.
     """

@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import base64
 import hashlib
 import hmac
-from typing import Any, Optional
+from typing import Any
 
 
-class OTP(object):
+class OTP:
     """
     Base class for OTP handlers.
     """
@@ -14,8 +16,8 @@ class OTP(object):
         s: str,
         digits: int = 6,
         digest: Any = hashlib.sha1,
-        name: Optional[str] = None,
-        issuer: Optional[str] = None,
+        name: str | None = None,
+        issuer: str | None = None,
     ) -> None:
         self.digits = digits
         if digits > 10:

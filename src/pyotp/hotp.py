@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import hashlib
-from typing import Any, Optional
+from typing import Any
 
 from . import utils
 from .otp import OTP
@@ -15,8 +17,8 @@ class HOTP(OTP):
         s: str,
         digits: int = 6,
         digest: Any = None,
-        name: Optional[str] = None,
-        issuer: Optional[str] = None,
+        name: str | None = None,
+        issuer: str | None = None,
         initial_count: int = 0,
     ) -> None:
         """
@@ -55,9 +57,9 @@ class HOTP(OTP):
 
     def provisioning_uri(
         self,
-        name: Optional[str] = None,
-        initial_count: Optional[int] = None,
-        issuer_name: Optional[str] = None,
+        name: str | None = None,
+        initial_count: int | None = None,
+        issuer_name: str | None = None,
         **kwargs,
     ) -> str:
         """
