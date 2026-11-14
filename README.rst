@@ -70,6 +70,27 @@ Time-based OTPs
     time.sleep(30)
     totp.verify('492039') # => False
 
+``TOTP.at()``, ``TOTP.verify()``, ``TOTP.verify_and_get_timecode()``, and ``TOTP.timecode()`` accept Unix timestamps
+as integers or floats, including values returned by ``time.time()``. Prefer Unix timestamps or timezone-aware UTC
+datetimes when passing an explicit time:
+
+.. code:: python
+
+    from datetime import datetime, timezone
+
+    timestamp = time.time()
+    code = totp.at(timestamp)
+    totp.verify(code, for_time=timestamp)  # => True
+    utc_time = datetime.fromtimestamp(timestamp, timezone.utc)
+    totp.verify(code, for_time=utc_time)  # => True
+
+Naive datetimes remain supported for compatibility and are interpreted in the process's local timezone. During a
+clock rollback, ``fold=0`` selects the earlier occurrence of a repeated local time and ``fold=1`` the later occurrence.
+Unix timestamps and aware UTC datetimes avoid dependence on the process's timezone.
+
+``timecode()`` and successful ``verify_and_get_timecode()`` calls return the number of time intervals since the Unix
+epoch. ``counter_offset`` and ``valid_window`` are measured in these interval steps.
+
 Counter-based OTPs
 ~~~~~~~~~~~~~~~~~~
 .. code:: python

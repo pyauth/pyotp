@@ -8,6 +8,7 @@ import sys
 import time
 import unittest
 from typing import ClassVar
+from unittest.mock import patch
 from urllib.parse import parse_qsl, urlparse
 from warnings import warn
 
@@ -312,9 +313,8 @@ class TOTPTimezones(unittest.TestCase):
                                 expected = totp.generate_otp(counter)
                                 aware = datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).astimezone()
                                 naive = aware.replace(tzinfo=None, fold=fold)
-                                self.assertEqual(totp.timecode(naive), counter)
-                                self.assertEqual(totp.timecode(aware), counter)
                                 for for_time in (ts, ts + 0.5, naive, aware):
+                                    self.assertEqual(totp.timecode(for_time), counter)
                                     self.assertEqual(totp.at(for_time), expected)
                                     self.assertTrue(totp.verify(expected, for_time))
                                     self.assertEqual(totp.verify_and_get_timecode(expected, for_time), counter)
@@ -360,6 +360,49 @@ class TOTPTimecode(unittest.TestCase):
                 aware = for_time.astimezone(timezone)
                 with self.subTest(for_time=aware):
                     self.assertEqual(totp.timecode(aware), counter)
+
+    def test_numeric_timestamps(self):
+        totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        cases = ((-30.5, -1), (-29.5, 0), (0, 0), (29.999999, 0), (30.0, 1), (59.999999, 1), (60, 2))
+        for timestamp, counter in cases:
+            with self.subTest(timestamp=timestamp):
+                self.assertEqual(totp.timecode(timestamp), counter)
+                if counter < 0:
+                    with self.assertRaises(ValueError):
+                        totp.at(timestamp)
+                    continue
+                code = totp.generate_otp(counter)
+                self.assertEqual(totp.at(timestamp), code)
+                self.assertTrue(totp.verify(code, for_time=timestamp))
+                matched = totp.verify_and_get_timecode(code, for_time=timestamp)
+                self.assertIsNot(matched, False)
+                self.assertEqual(matched, counter)
+
+    def test_timestamps_outside_datetime_range(self):
+        totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        timestamp = 10**12
+        counter = timestamp // totp.interval
+        code = totp.generate_otp(counter)
+        self.assertEqual(totp.timecode(timestamp), counter)
+        self.assertEqual(totp.at(timestamp), code)
+        self.assertTrue(totp.verify(code, for_time=timestamp))
+        self.assertEqual(totp.verify_and_get_timecode(code, for_time=timestamp), counter)
+
+    def test_verification_normalizes_time_once(self):
+        totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        timestamp = 200.5
+        counter = 6
+        code = totp.generate_otp(counter + 2)
+        for verify in (totp.verify, totp.verify_and_get_timecode):
+            for candidate in (code, "invalid"):
+                with self.subTest(method=verify.__name__, candidate=candidate):
+                    with patch.object(totp, "timecode", wraps=totp.timecode) as normalize:
+                        result = verify(candidate, for_time=timestamp, valid_window=2)
+                        normalize.assert_called_once_with(timestamp)
+                    if candidate == code:
+                        self.assertTrue(result)
+                    else:
+                        self.assertIs(result, False)
 
 
 class SteamTOTP(unittest.TestCase):
@@ -611,9 +654,12 @@ class Timecop:
     def __enter__(self):
         self.real_datetime = datetime.datetime
         datetime.datetime = self.frozen_datetime()
+        self.time_patch = patch("time.time", return_value=self.freeze_timestamp)
+        self.time_patch.start()
 
     def __exit__(self, type, value, traceback):
         datetime.datetime = self.real_datetime
+        self.time_patch.stop()
 
     def frozen_datetime(self):
         class FrozenDateTime(datetime.datetime):
