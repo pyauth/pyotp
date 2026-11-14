@@ -183,11 +183,10 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_input_before_epoch(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
-        # -1 and -29.5 round down to 0 (epoch)
-        self.assertEqual(totp.at(-1), "755224")
-        self.assertEqual(totp.at(-29.5), "755224")
-        with self.assertRaises(ValueError):
-            totp.at(-30)
+        for timestamp in (-30, -29.5, -1, -0.1):
+            with self.subTest(timestamp=timestamp):
+                with self.assertRaises(ValueError):
+                    totp.at(timestamp)
 
     def test_validate_totp_with_digit_length(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
@@ -343,11 +342,27 @@ class TOTPTimezones(unittest.TestCase):
             with self.subTest(for_time=for_time):
                 self.assertEqual(totp.timecode(for_time.replace(tzinfo=None)), counter)
 
+    def test_naive_time_range(self):
+        os.environ["TZ"] = "UTC0"
+        time.tzset()
+        totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc).replace(tzinfo=None)
+        self.assertEqual(totp.timecode(epoch), 0)
+        self.assertEqual(totp.timecode(datetime.datetime.max), 8446743359)
+        for for_time in (datetime.datetime.min, epoch - datetime.timedelta(microseconds=1)):
+            with self.subTest(for_time=for_time):
+                with self.assertRaisesRegex(ValueError, "for_time must be"):
+                    totp.timecode(for_time)
+                with self.assertRaises(ValueError):
+                    totp.at(for_time)
+                with self.assertRaises(ValueError):
+                    totp.verify("invalid", for_time=for_time)
+                with self.assertRaises(ValueError):
+                    totp.verify_and_get_timecode("invalid", for_time=for_time)
+
 
 class TOTPTimecode(unittest.TestCase):
     FRACTIONAL_SECONDS = (
-        (datetime.datetime(1969, 12, 31, 23, 59, 30, 999999, tzinfo=datetime.timezone.utc), -1),
-        (datetime.datetime(1969, 12, 31, 23, 59, 31, 999999, tzinfo=datetime.timezone.utc), 0),
         (datetime.datetime(1970, 1, 1, 0, 0, 29, 999999, tzinfo=datetime.timezone.utc), 0),
         (datetime.datetime(1970, 1, 1, 0, 0, 30, tzinfo=datetime.timezone.utc), 1),
         (datetime.datetime(2600, 1, 1, 0, 0, 29, 999999, tzinfo=datetime.timezone.utc), 662696640),
@@ -363,14 +378,18 @@ class TOTPTimecode(unittest.TestCase):
 
     def test_numeric_timestamps(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
-        cases = ((-30.5, -1), (-29.5, 0), (0, 0), (29.999999, 0), (30.0, 1), (59.999999, 1), (60, 2))
+        cases = (
+            (0, 0),
+            (29.999999, 0),
+            (30.0, 1),
+            (59.999999, 1),
+            (60, 2),
+            (253402300799, 8446743359),
+            (253402300799.5, 8446743359),
+        )
         for timestamp, counter in cases:
             with self.subTest(timestamp=timestamp):
                 self.assertEqual(totp.timecode(timestamp), counter)
-                if counter < 0:
-                    with self.assertRaises(ValueError):
-                        totp.at(timestamp)
-                    continue
                 code = totp.generate_otp(counter)
                 self.assertEqual(totp.at(timestamp), code)
                 self.assertTrue(totp.verify(code, for_time=timestamp))
@@ -379,14 +398,65 @@ class TOTPTimecode(unittest.TestCase):
                 self.assertEqual(matched, counter)
 
     def test_timestamps_outside_datetime_range(self):
+        for timestamp in (-30.5, -29.5, -1, -0.1, 253402300800, 253402300800.0, 10**12):
+            self.assert_time_out_of_range(timestamp)
+
+    def test_nonfinite_timestamps(self):
+        for timestamp in (float("nan"), float("inf"), float("-inf")):
+            self.assert_time_out_of_range(timestamp)
+
+    def test_current_time_outside_range(self):
+        for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+            totp = otp_type("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+            for timestamp in (-0.1, 253402300800):
+                with self.subTest(otp_type=otp_type, timestamp=timestamp):
+                    with patch("time.time", return_value=timestamp):
+                        with self.assertRaisesRegex(ValueError, "for_time must be"):
+                            totp.now()
+                        with self.assertRaises(ValueError):
+                            totp.verify("invalid")
+                        with self.assertRaises(ValueError):
+                            totp.verify_and_get_timecode("invalid")
+
+    def test_datetimes_outside_range(self):
+        cases = (
+            datetime.datetime.min,
+            datetime.datetime.min.replace(tzinfo=datetime.timezone.utc),
+            datetime.datetime(1969, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc),
+            datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone(datetime.timedelta(hours=1))),
+            datetime.datetime.max.replace(tzinfo=datetime.timezone(datetime.timedelta(hours=-1))),
+        )
+        for for_time in cases:
+            self.assert_time_out_of_range(for_time)
+
+    def test_datetime_range_boundaries(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
-        timestamp = 10**12
-        counter = timestamp // totp.interval
-        code = totp.generate_otp(counter)
-        self.assertEqual(totp.timecode(timestamp), counter)
-        self.assertEqual(totp.at(timestamp), code)
-        self.assertTrue(totp.verify(code, for_time=timestamp))
-        self.assertEqual(totp.verify_and_get_timecode(code, for_time=timestamp), counter)
+        cases = (
+            (datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc), 0),
+            (datetime.datetime(1969, 12, 31, 23, tzinfo=datetime.timezone(datetime.timedelta(hours=-1))), 0),
+            (datetime.datetime.max.replace(tzinfo=datetime.timezone.utc), 8446743359),
+        )
+        for for_time, counter in cases:
+            with self.subTest(for_time=for_time):
+                code = totp.generate_otp(counter)
+                self.assertEqual(totp.timecode(for_time), counter)
+                self.assertEqual(totp.at(for_time), code)
+                self.assertTrue(totp.verify(code, for_time=for_time))
+                self.assertEqual(totp.verify_and_get_timecode(code, for_time=for_time), counter)
+
+    def assert_time_out_of_range(self, for_time):
+        for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+            totp = otp_type("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+            calls = (
+                (totp.timecode, (for_time,)),
+                (totp.at, (for_time,)),
+                (totp.verify, ("invalid", for_time)),
+                (totp.verify_and_get_timecode, ("invalid", for_time)),
+            )
+            for method, args in calls:
+                with self.subTest(otp_type=otp_type, method=method.__name__, for_time=for_time):
+                    with self.assertRaisesRegex(ValueError, "for_time must be"):
+                        method(*args)
 
     def test_verification_normalizes_time_once(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")

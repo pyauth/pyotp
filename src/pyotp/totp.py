@@ -9,6 +9,8 @@ from typing import Any, Literal
 from . import utils
 from .otp import OTP
 
+_TIMESTAMP_LIMIT = 253402300800  # 10000-01-01 00:00:00 UTC, exclusive.
+
 
 class TOTP(OTP):
     """
@@ -58,6 +60,7 @@ class TOTP(OTP):
         :param for_time: the time to generate an OTP for
         :param counter_offset: the amount of ticks to add to the time counter
         :returns: OTP value
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
         return self.generate_otp(self.timecode(for_time) + counter_offset)
 
@@ -66,6 +69,7 @@ class TOTP(OTP):
         Generate the current time OTP
 
         :returns: OTP value
+        :raises ValueError: if the current time is before the Unix epoch or after year 9999 in UTC
         """
         return self.generate_otp(self.timecode(time.time()))
 
@@ -81,6 +85,7 @@ class TOTP(OTP):
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
         :returns: True if verification succeeded, False otherwise
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
         if for_time is None:
             for_time = time.time()
@@ -114,6 +119,7 @@ class TOTP(OTP):
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this counter ticks before and after the current one
         :returns: matching timecode if verification succeeded, False otherwise
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
         if for_time is None:
             for_time = time.time()
@@ -157,11 +163,21 @@ class TOTP(OTP):
         datetimes are interpreted as local time, using ``fold`` to
         distinguish repeated clock times. Subsecond precision is ignored.
 
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
-        if not isinstance(for_time, datetime.datetime):
-            return int(int(for_time) / self.interval)
-        if for_time.tzinfo:
-            return int(calendar.timegm(for_time.utctimetuple()) / self.interval)
+        error_message = "for_time must be at or after the Unix epoch and before year 10000 UTC"
+        timestamp: int | float
+        if isinstance(for_time, datetime.datetime):
+            try:
+                if for_time.tzinfo:
+                    timestamp = calendar.timegm(for_time.utctimetuple())
+                else:
+                    # Preserve whole-second behavior without discarding fold.
+                    timestamp = for_time.replace(microsecond=0).timestamp()
+            except (OverflowError, OSError, ValueError) as error:
+                raise ValueError(error_message) from error
         else:
-            # Preserve whole-second behavior without discarding fold.
-            return int(for_time.replace(microsecond=0).timestamp() / self.interval)
+            timestamp = for_time
+        if not 0 <= timestamp < _TIMESTAMP_LIMIT:
+            raise ValueError(error_message)
+        return int(int(timestamp) / self.interval)
