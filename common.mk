@@ -13,12 +13,15 @@ release-patch:
 	$(MAKE) release
 
 release:
+	@if [[ "$$(git symbolic-ref --quiet HEAD)" != refs/heads/main ]]; then echo "Releases must be run from the main branch"; exit 1; fi
 	@if ! git diff --cached --exit-code; then echo "Commit staged files before proceeding"; exit 1; fi
+	@if ! git diff --exit-code; then echo "Commit unstaged changes before proceeding"; exit 1; fi
 	@if [[ -z $$TAG ]]; then echo "Use release-{major,minor,patch}"; exit 1; fi
 	@if ! type -P pandoc; then echo "Please install pandoc"; exit 1; fi
 	@if ! type -P sponge; then echo "Please install moreutils"; exit 1; fi
 	@if ! type -P gh; then echo "Please install gh"; exit 1; fi
 	git pull
+	$(MAKE) check-dist
 	TAG_MSG=$$(mktemp); \
 	    echo "# Changes for ${TAG} ($$(date +%Y-%m-%d))" > $$TAG_MSG; \
 	    git log --pretty=format:%s $$(git describe --abbrev=0)..HEAD >> $$TAG_MSG; \
@@ -32,6 +35,13 @@ release:
 	gh release create ${TAG} dist/*.whl --notes="$$(git tag --list ${TAG} -n99 | perl -pe 's/^\S+\s*// if $$. == 1' | sed 's/^\s\s\s\s//')"
 	$(MAKE) release-docs
 
+check-dist:
+	@python -c 'import build, twine' 2>/dev/null || { echo "Please install build and twine: python -m pip install build twine"; exit 1; }
+	@release_dist_dir=$$(mktemp -d); \
+	    trap 'rm -rf "$$release_dist_dir"' EXIT; \
+	    python -m build --outdir "$$release_dist_dir"; \
+	    python -m twine check --strict "$$release_dist_dir"/*
+
 release-docs:
 	$(MAKE) docs
 	-git branch -D gh-pages
@@ -42,4 +52,4 @@ release-docs:
 	git push --force origin $$(git subtree split --prefix docs/html --branch gh-pages):refs/heads/gh-pages
 	git checkout -
 
-.PHONY: release
+.PHONY: release check-dist
