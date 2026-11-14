@@ -44,6 +44,7 @@ class TOTP(OTP):
         """
         Accepts a Unix timestamp (int or float) or a datetime object.
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
@@ -72,6 +73,7 @@ class TOTP(OTP):
         """
         Verifies the OTP passed in against the current time OTP.
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
@@ -104,6 +106,7 @@ class TOTP(OTP):
         authentication and reject future OTPs whose matching timecode
         is not greater than the stored one.
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
@@ -149,6 +152,7 @@ class TOTP(OTP):
         Converts a Unix timestamp (int or float) or a datetime object
         to the corresponding counter value (timecode).
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, using ``fold`` to
         distinguish repeated clock times. Subsecond precision is ignored.
