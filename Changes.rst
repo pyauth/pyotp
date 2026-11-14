@@ -1,3 +1,9 @@
+Changes for v2.11.1 (2026-11-14)
+================================
+
+-  Fix PyPI README markup and validate distributions before release
+   (#200)
+
 Changes for v2.11.0 (2026-11-14)
 ================================
 
