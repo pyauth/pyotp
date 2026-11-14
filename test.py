@@ -170,15 +170,15 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_match_google_authenticator_output(self):
         totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
-        with Timecop(1297553958):
+        with patch("pyotp.totp.time.time", return_value=1297553958):
             self.assertEqual(totp.now(), "102705")
 
     def test_validate_totp(self):
         totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
-        with Timecop(1297553958):
+        with patch("pyotp.totp.time.time", return_value=1297553958):
             self.assertTrue(totp.verify("102705"))
             self.assertTrue(totp.verify("102705"))
-        with Timecop(1297553958 + 30):
+        with patch("pyotp.totp.time.time", return_value=1297553958 + 30):
             self.assertFalse(totp.verify("102705"))
 
     def test_input_before_epoch(self):
@@ -190,9 +190,9 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_validate_totp_with_digit_length(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
-        with Timecop(1111111111):
+        with patch("pyotp.totp.time.time", return_value=1111111111):
             self.assertTrue(totp.verify("050471"))
-        with Timecop(1297553958 + 30):
+        with patch("pyotp.totp.time.time", return_value=1297553958 + 30):
             self.assertFalse(totp.verify("050471"))
 
     def test_provisioning_uri(self):
@@ -328,8 +328,7 @@ class TOTPTimezones(unittest.TestCase):
                                 other = totp.generate_otp((timestamps[1 - fold] + delta) // interval)
                                 self.assertFalse(totp.verify(other, naive, valid_window=1))
                                 self.assertIs(totp.verify_and_get_timecode(other, naive, valid_window=1), False)
-                                with Timecop(ts):
-                                    self.assertEqual(datetime.datetime.now().astimezone().timestamp(), ts)
+                                with patch("pyotp.totp.time.time", return_value=ts):
                                     self.assertEqual(totp.now(), expected)
                                     self.assertTrue(totp.verify(expected))
                                     self.assertEqual(totp.verify_and_get_timecode(expected), counter)
@@ -410,7 +409,7 @@ class TOTPTimecode(unittest.TestCase):
             totp = otp_type("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
             for timestamp in (-0.1, 253402300800):
                 with self.subTest(otp_type=otp_type, timestamp=timestamp):
-                    with patch("time.time", return_value=timestamp):
+                    with patch("pyotp.totp.time.time", return_value=timestamp):
                         with self.assertRaisesRegex(ValueError, "for_time must be"):
                             totp.now()
                         with self.assertRaises(ValueError):
@@ -493,25 +492,25 @@ class SteamTOTP(unittest.TestCase):
 
     def test_verify(self):
         steam = pyotp.contrib.Steam("BASE32SECRET3232")
-        with Timecop(1662883100):
+        with patch("pyotp.totp.time.time", return_value=1662883100):
             self.assertTrue(steam.verify("N3G63"))
-        with Timecop(1662883100 + 30):
+        with patch("pyotp.totp.time.time", return_value=1662883100 + 30):
             self.assertFalse(steam.verify("N3G63"))
 
-        with Timecop(946681223):
+        with patch("pyotp.totp.time.time", return_value=946681223):
             self.assertTrue(steam.verify("7VP3X"))
-        with Timecop(946681223 + 30):
+        with patch("pyotp.totp.time.time", return_value=946681223 + 30):
             self.assertFalse(steam.verify("7VP3X"))
 
         steam = pyotp.contrib.Steam("FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW")
-        with Timecop(1662884261):
+        with patch("pyotp.totp.time.time", return_value=1662884261):
             self.assertTrue(steam.verify("V6WKJ"))
-        with Timecop(1662884261 + 30):
+        with patch("pyotp.totp.time.time", return_value=1662884261 + 30):
             self.assertFalse(steam.verify("V6WKJ"))
 
-        with Timecop(946681223):
+        with patch("pyotp.totp.time.time", return_value=946681223):
             self.assertTrue(steam.verify("4MK54"))
-        with Timecop(946681223 + 30):
+        with patch("pyotp.totp.time.time", return_value=946681223 + 30):
             self.assertFalse(steam.verify("4MK54"))
 
 
@@ -711,47 +710,6 @@ class ParseUriTest(unittest.TestCase):
         otp = pyotp.parse_uri("otpauth://totp/Big%20Corp:bob?secret=GEZDGNBV&issuer=Big%20Corp")
         self.assertEqual(otp.name, "bob")
         self.assertEqual(otp.issuer, "Big Corp")
-
-
-class Timecop:
-    """
-    Half-assed clone of timecop.rb, just enough to pass our tests.
-    """
-
-    def __init__(self, freeze_timestamp):
-        self.freeze_timestamp = freeze_timestamp
-
-    def __enter__(self):
-        self.real_datetime = datetime.datetime
-        datetime.datetime = self.frozen_datetime()
-        self.time_patch = patch("time.time", return_value=self.freeze_timestamp)
-        self.time_patch.start()
-
-    def __exit__(self, type, value, traceback):
-        datetime.datetime = self.real_datetime
-        self.time_patch.stop()
-
-    def frozen_datetime(self):
-        class FrozenDateTime(datetime.datetime):
-            @classmethod
-            def now(cls, tz=None):
-                instant = timecop.real_datetime.fromtimestamp(timecop.freeze_timestamp, tz)
-                # Construct explicitly: older Python versions can lose fold when
-                # fromtimestamp() is called on a datetime subclass.
-                return cls(
-                    instant.year,
-                    instant.month,
-                    instant.day,
-                    instant.hour,
-                    instant.minute,
-                    instant.second,
-                    instant.microsecond,
-                    tzinfo=instant.tzinfo,
-                    fold=instant.fold,
-                )
-
-        timecop = self
-        return FrozenDateTime
 
 
 if __name__ == "__main__":
