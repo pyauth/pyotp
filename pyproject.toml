@@ -62,3 +62,5 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "**/__init__.py" = ["F401"]
+# Keep accepted timestamp types explicit in public API annotations.
+"src/pyotp/totp.py" = ["PYI041"]
