@@ -67,8 +67,7 @@ def build_uri(
         url_args["period"] = period
     for k, v in kwargs.items():
         if not isinstance(v, str):
-            # Retain the public API's existing exception for invalid parameters.
-            raise ValueError("All otpauth uri parameters must be strings")  # noqa: TRY004
+            raise TypeError("All otpauth uri parameters must be strings")
         if k == "image":
             image_uri = urlparse(v)
             if image_uri.scheme != "https" or not image_uri.netloc or not image_uri.path:

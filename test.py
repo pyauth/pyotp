@@ -251,6 +251,15 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
         )
         self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
 
+    def test_provisioning_uri_parameter_types(self):
+        for otp_type in (pyotp.TOTP, pyotp.HOTP):
+            with self.subTest(otp_type=otp_type):
+                otp = otp_type("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+                with self.assertRaises(TypeError):
+                    otp.provisioning_uri(image=123)
+                with self.assertRaises(ValueError):
+                    otp.provisioning_uri(image="not-a-url")
+
     def test_random_key_generation(self):
         self.assertEqual(len(pyotp.random_base32()), 32)
         self.assertEqual(len(pyotp.random_base32(length=34)), 34)
