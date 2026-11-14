@@ -3,7 +3,6 @@ from __future__ import annotations
 import calendar
 import datetime
 import hashlib
-import time
 from typing import Any, Literal
 
 from . import utils
@@ -49,14 +48,14 @@ class TOTP(OTP):
         .. code:: python
 
             totp = pyotp.TOTP(...)
-            time_remaining = totp.interval - datetime.datetime.now().timestamp() % totp.interval
+            time_remaining = totp.interval - datetime.datetime.now(datetime.timezone.utc).timestamp() % totp.interval
 
         :param for_time: the time to generate an OTP for
         :param counter_offset: the amount of ticks to add to the time counter
         :returns: OTP value
         """
         if not isinstance(for_time, datetime.datetime):
-            for_time = datetime.datetime.fromtimestamp(int(for_time))
+            for_time = datetime.datetime.fromtimestamp(int(for_time), datetime.timezone.utc)
         return self.generate_otp(self.timecode(for_time) + counter_offset)
 
     def now(self) -> str:
@@ -65,7 +64,7 @@ class TOTP(OTP):
 
         :returns: OTP value
         """
-        return self.generate_otp(self.timecode(datetime.datetime.now()))
+        return self.generate_otp(self.timecode(datetime.datetime.now(datetime.timezone.utc)))
 
     def verify(self, otp: str, for_time: datetime.datetime | None = None, valid_window: int = 0) -> bool:
         """
@@ -77,7 +76,7 @@ class TOTP(OTP):
         :returns: True if verification succeeded, False otherwise
         """
         if for_time is None:
-            for_time = datetime.datetime.now()
+            for_time = datetime.datetime.now(datetime.timezone.utc)
 
         if valid_window:
             for i in range(-valid_window, valid_window + 1):
@@ -104,9 +103,9 @@ class TOTP(OTP):
         :returns: matching timecode if verification succeeded, False otherwise
         """
         if for_time is None:
-            for_time = datetime.datetime.now()
+            for_time = datetime.datetime.now(datetime.timezone.utc)
         elif isinstance(for_time, (float, int)):
-            for_time = datetime.datetime.fromtimestamp(int(for_time))
+            for_time = datetime.datetime.fromtimestamp(int(for_time), datetime.timezone.utc)
 
         if valid_window < 0:
             raise ValueError("valid_window cannot be negative")
@@ -142,8 +141,12 @@ class TOTP(OTP):
         a timezone aware datetime as argument and returns the
         corresponding counter value (timecode).
 
+        Naive datetimes are interpreted as local time, using ``fold`` to
+        distinguish repeated clock times. Subsecond precision is ignored.
+
         """
         if for_time.tzinfo:
             return int(calendar.timegm(for_time.utctimetuple()) / self.interval)
         else:
-            return int(time.mktime(for_time.timetuple()) / self.interval)
+            # Preserve whole-second behavior without discarding fold.
+            return int(for_time.replace(microsecond=0).timestamp() / self.interval)
