@@ -1,3 +1,13 @@
+Changes for v2.11.0 (2026-11-14)
+================================
+
+-  Fix DST rollbacks and normalize TOTP timestamp inputs (#197)
+
+-  Respect initial_count=0 in HOTP.provisioning_uri() (#190)
+
+-  Implement verify_and_get_timecode, a method for TOTP that verifies
+   and returns the matching timecode (#191)
+
 Changes for v2.10.0 (2026-06-13)
 ================================
 
