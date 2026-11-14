@@ -9,6 +9,8 @@ from typing import Any, Literal
 from . import utils
 from .otp import OTP
 
+_TIMESTAMP_LIMIT = 253402300800  # 10000-01-01 00:00:00 UTC, exclusive.
+
 
 class TOTP(OTP):
     """
@@ -40,23 +42,26 @@ class TOTP(OTP):
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 
-    def at(self, for_time: int | datetime.datetime, counter_offset: int = 0) -> str:
+    def at(self, for_time: int | float | datetime.datetime, counter_offset: int = 0) -> str:
         """
-        Accepts either a Unix timestamp or a datetime object.
+        Accepts a Unix timestamp (int or float) or a datetime object.
+
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
+        Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
+        datetimes are interpreted as local time, respecting ``fold``.
 
         To get the time until the next timecode change (seconds until the current OTP expires), use this instead:
 
         .. code:: python
 
             totp = pyotp.TOTP(...)
-            time_remaining = totp.interval - datetime.datetime.now().timestamp() % totp.interval
+            time_remaining = totp.interval - time.time() % totp.interval
 
         :param for_time: the time to generate an OTP for
         :param counter_offset: the amount of ticks to add to the time counter
         :returns: OTP value
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
-        if not isinstance(for_time, datetime.datetime):
-            for_time = datetime.datetime.fromtimestamp(int(for_time))
         return self.generate_otp(self.timecode(for_time) + counter_offset)
 
     def now(self) -> str:
@@ -64,31 +69,39 @@ class TOTP(OTP):
         Generate the current time OTP
 
         :returns: OTP value
+        :raises ValueError: if the current time is before the Unix epoch or after year 9999 in UTC
         """
-        return self.generate_otp(self.timecode(datetime.datetime.now()))
+        return self.generate_otp(self.timecode(time.time()))
 
-    def verify(self, otp: str, for_time: datetime.datetime | None = None, valid_window: int = 0) -> bool:
+    def verify(self, otp: str, for_time: int | float | datetime.datetime | None = None, valid_window: int = 0) -> bool:
         """
         Verifies the OTP passed in against the current time OTP.
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
+        Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
+        datetimes are interpreted as local time, respecting ``fold``.
+
         :param otp: the OTP to check against
-        :param for_time: Time to check OTP at (defaults to now)
+        :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
         :returns: True if verification succeeded, False otherwise
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
         if for_time is None:
-            for_time = datetime.datetime.now()
+            for_time = time.time()
+
+        timecode = self.timecode(for_time)
 
         if valid_window:
             for i in range(-valid_window, valid_window + 1):
-                if utils.strings_equal(str(otp), str(self.at(for_time, i))):
+                if utils.strings_equal(str(otp), str(self.generate_otp(timecode + i))):
                     return True
             return False
 
-        return utils.strings_equal(str(otp), str(self.at(for_time)))
+        return utils.strings_equal(str(otp), str(self.generate_otp(timecode)))
 
     def verify_and_get_timecode(
-        self, otp: str, for_time: int | datetime.datetime | None = None, valid_window: int = 0
+        self, otp: str, for_time: int | float | datetime.datetime | None = None, valid_window: int = 0
     ) -> int | Literal[False]:
         """
         Verifies the OTP passed in against the current time OTP and returns the matching timecode.
@@ -98,22 +111,26 @@ class TOTP(OTP):
         authentication and reject future OTPs whose matching timecode
         is not greater than the stored one.
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
+        Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
+        datetimes are interpreted as local time, respecting ``fold``.
+
         :param otp: the OTP to check against
-        :param for_time: Time to check OTP at (defaults to now); accepts datetime or Unix timestamp
+        :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this counter ticks before and after the current one
         :returns: matching timecode if verification succeeded, False otherwise
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
         if for_time is None:
-            for_time = datetime.datetime.now()
-        elif isinstance(for_time, (float, int)):
-            for_time = datetime.datetime.fromtimestamp(int(for_time))
+            for_time = time.time()
 
         if valid_window < 0:
             raise ValueError("valid_window cannot be negative")
 
+        timecode = self.timecode(for_time)
         for i in range(-valid_window, valid_window + 1):
-            if utils.strings_equal(str(otp), str(self.at(for_time, i))):
-                return self.timecode(for_time) + i
+            if utils.strings_equal(str(otp), str(self.generate_otp(timecode + i))):
+                return timecode + i
         return False
 
     def provisioning_uri(self, name: str | None = None, issuer_name: str | None = None, **kwargs) -> str:
@@ -136,14 +153,31 @@ class TOTP(OTP):
             **kwargs,
         )
 
-    def timecode(self, for_time: datetime.datetime) -> int:
+    def timecode(self, for_time: int | float | datetime.datetime) -> int:
         """
-        Accepts either a timezone naive (`for_time.tzinfo is None`) or
-        a timezone aware datetime as argument and returns the
-        corresponding counter value (timecode).
+        Converts a Unix timestamp (int or float) or a datetime object
+        to the corresponding counter value (timecode).
 
+        Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
+        Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
+        datetimes are interpreted as local time, using ``fold`` to
+        distinguish repeated clock times. Subsecond precision is ignored.
+
+        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
         """
-        if for_time.tzinfo:
-            return int(calendar.timegm(for_time.utctimetuple()) / self.interval)
+        error_message = "for_time must be at or after the Unix epoch and before year 10000 UTC"
+        timestamp: int | float
+        if isinstance(for_time, datetime.datetime):
+            try:
+                if for_time.tzinfo:
+                    timestamp = calendar.timegm(for_time.utctimetuple())
+                else:
+                    # Preserve whole-second behavior without discarding fold.
+                    timestamp = for_time.replace(microsecond=0).timestamp()
+            except (OverflowError, OSError, ValueError) as error:
+                raise ValueError(error_message) from error
         else:
-            return int(time.mktime(for_time.timetuple()) / self.interval)
+            timestamp = for_time
+        if not 0 <= timestamp < _TIMESTAMP_LIMIT:
+            raise ValueError(error_message)
+        return int(int(timestamp) / self.interval)
