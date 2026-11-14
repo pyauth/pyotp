@@ -53,3 +53,12 @@ line_length = 120
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
+ignore = [
+    "SIM102",  # Allow nested if statements.
+    "SIM117",  # Allow nested with statements.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]

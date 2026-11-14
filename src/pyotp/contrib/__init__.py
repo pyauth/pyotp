@@ -1,1 +1,1 @@
-from .steam import Steam as Steam
+from .steam import Steam

@@ -5,11 +5,11 @@ from re import split
 from typing import Any, Sequence
 from urllib.parse import parse_qsl, unquote, urlparse
 
-from . import contrib as contrib
+from . import contrib
 from .compat import random
-from .hotp import HOTP as HOTP
-from .otp import OTP as OTP
-from .totp import TOTP as TOTP
+from .hotp import HOTP
+from .otp import OTP
+from .totp import TOTP
 
 
 def random_base32(length: int = 32, chars: Sequence[str] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567") -> str:
