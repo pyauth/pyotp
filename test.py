@@ -6,11 +6,12 @@ import hashlib
 import os
 import sys
 import unittest
+from typing import ClassVar
 from urllib.parse import parse_qsl, urlparse
 from warnings import warn
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-import pyotp  # noqa
+import pyotp
 
 
 class HOTPExampleValuesFromTheRFC(unittest.TestCase):
@@ -117,7 +118,7 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
 
 
 class TOTPExampleValuesFromTheRFC(unittest.TestCase):
-    RFC_VALUES = {
+    RFC_VALUES: ClassVar[dict] = {
         (hashlib.sha1, b"12345678901234567890"): (
             (59, "94287082"),
             (1111111109, "07081804"),
@@ -499,7 +500,7 @@ class ParseUriTest(unittest.TestCase):
         self.assertEqual(otp.issuer, "Big Corp")
 
 
-class Timecop(object):
+class Timecop:
     """
     Half-assed clone of timecop.rb, just enough to pass our tests.
     """

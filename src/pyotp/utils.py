@@ -1,17 +1,18 @@
+from __future__ import annotations
+
 import unicodedata
 from hmac import compare_digest
-from typing import Dict, Optional, Union
 from urllib.parse import quote, urlencode, urlparse
 
 
 def build_uri(
     secret: str,
     name: str,
-    initial_count: Optional[int] = None,
-    issuer: Optional[str] = None,
-    algorithm: Optional[str] = None,
-    digits: Optional[int] = None,
-    period: Optional[int] = None,
+    initial_count: int | None = None,
+    issuer: str | None = None,
+    algorithm: str | None = None,
+    digits: int | None = None,
+    period: int | None = None,
     **kwargs,
 ) -> str:
     """
@@ -49,7 +50,7 @@ def build_uri(
     otp_type = "hotp" if is_initial_count_present else "totp"
     base_uri = "otpauth://{0}/{1}?{2}"
 
-    url_args: Dict[str, Union[None, int, str]] = {"secret": secret}
+    url_args: dict[str, None | int | str] = {"secret": secret}
 
     label = quote(name)
     if issuer is not None:
@@ -66,11 +67,12 @@ def build_uri(
         url_args["period"] = period
     for k, v in kwargs.items():
         if not isinstance(v, str):
-            raise ValueError("All otpauth uri parameters must be strings")
+            # Retain the public API's existing exception for invalid parameters.
+            raise ValueError("All otpauth uri parameters must be strings")  # noqa: TRY004
         if k == "image":
             image_uri = urlparse(v)
             if image_uri.scheme != "https" or not image_uri.netloc or not image_uri.path:
-                raise ValueError("{} is not a valid url".format(image_uri))
+                raise ValueError(f"{image_uri} is not a valid url")
         url_args[k] = v
 
     uri = base_uri.format(otp_type, label, urlencode(url_args).replace("+", "%20"))

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import hashlib
 from re import split
-from typing import Any, Dict, Sequence
+from typing import Any, Sequence
 from urllib.parse import parse_qsl, unquote, urlparse
 
-from . import contrib  # noqa:F401
+from . import contrib as contrib
 from .compat import random
 from .hotp import HOTP as HOTP
 from .otp import OTP as OTP
@@ -47,7 +49,7 @@ def parse_uri(uri: str) -> OTP:
     digits = None
 
     # Data we'll parse to the correct constructor
-    otp_data: Dict[str, Any] = {}
+    otp_data: dict[str, Any] = {}
 
     # Parse the URI structure first, then unquote individual components.
     # Unquoting the whole URI before splitting the label would turn an
@@ -97,9 +99,8 @@ def parse_uri(uri: str) -> OTP:
         elif key == "counter":
             otp_data["initial_count"] = int(value)
 
-    if encoder != "steam":
-        if digits is not None and digits not in [6, 7, 8]:
-            raise ValueError("Digits may only be 6, 7, or 8")
+    if encoder != "steam" and digits is not None and digits not in [6, 7, 8]:
+        raise ValueError("Digits may only be 6, 7, or 8")
 
     if not secret:
         raise ValueError("No secret found in URI")
