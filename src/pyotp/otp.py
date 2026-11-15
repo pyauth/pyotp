@@ -14,6 +14,7 @@ class OTP:
     def __init__(
         self,
         s: str,
+        *,
         digits: int = 6,
         digest: Any = hashlib.sha1,
         name: str | None = None,
@@ -58,7 +59,7 @@ class OTP:
         return base64.b32decode(secret, casefold=True)
 
     @staticmethod
-    def int_to_bytestring(i: int, padding: int = 8) -> bytes:
+    def int_to_bytestring(i: int, *, padding: int = 8) -> bytes:
         """
         Turns an integer to the OATH specified
         bytestring, which is fed to the HMAC

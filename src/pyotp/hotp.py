@@ -15,6 +15,7 @@ class HOTP(OTP):
     def __init__(
         self,
         s: str,
+        *,
         digits: int = 6,
         digest: Any = None,
         name: str | None = None,
@@ -57,6 +58,7 @@ class HOTP(OTP):
 
     def provisioning_uri(
         self,
+        *,
         name: str | None = None,
         initial_count: int | None = None,
         issuer_name: str | None = None,
