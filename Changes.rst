@@ -1,3 +1,14 @@
+Changes for v2.12.0 (2026-11-15)
+================================
+
+-  Require 112-bit OTP secrets and update illustrative examples (#205)
+
+-  Limit TOTP intervals to 120 seconds (#206)
+
+-  Update recommendations for authentication best practices
+
+-  Update required minimum Python version to 3.10
+
 Changes for v2.11.2 (2026-11-14)
 ================================
 
