@@ -78,13 +78,6 @@ class TOTP(OTP):
         """
         Verifies the OTP passed in against the current time OTP.
 
-        .. caution::
-
-            This method returns a boolean; always check the result. A failed
-            OTP match returns ``False``. :meth:`verify_and_get_timecode`
-            returns the matching integer timecode on success and raises
-            :class:`~pyotp.exceptions.OTPVerificationError` on a failed match.
-
         Unix timestamps are measured in seconds since 1970-01-01 00:00:00 UTC.
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
@@ -113,6 +106,13 @@ class TOTP(OTP):
     ) -> int:
         """
         Verifies the OTP passed in against the current time OTP and returns the matching timecode.
+
+        .. caution::
+
+            A failed OTP match raises :class:`~pyotp.exceptions.OTPVerificationError`;
+            :meth:`verify` returns ``False`` instead. A successful match returns an
+            integer timecode, including ``0``, so do not use a truthiness check to
+            determine whether verification succeeded.
 
         This is useful when callers need to prevent TOTP reuse. An
         application can store the timecode from the last successful
