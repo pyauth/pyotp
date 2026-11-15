@@ -40,8 +40,9 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
     def test_verify_otp_reuse(self):
         hotp = pyotp.HOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
         self.assertTrue(hotp.verify("520489", 9))
+        self.assertTrue(hotp.verify("５２０４８９", 9))
         self.assertFalse(hotp.verify("520489", 10))
-        self.assertFalse(hotp.verify("520489", 10))
+        self.assertFalse(hotp.verify("５２０４８９", 10))
 
     def test_provisioning_uri(self):
         hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival")
@@ -149,7 +150,7 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_match_rfc(self):
         for digest, secret in self.RFC_VALUES:
-            totp = pyotp.TOTP(base64.b32encode(secret), 8, digest)
+            totp = pyotp.TOTP(base64.b32encode(secret), digits=8, digest=digest)
             for utime, code in self.RFC_VALUES[(digest, secret)]:
                 if utime > sys.maxsize:
                     warn(
@@ -315,19 +316,20 @@ class TOTPTimezones(unittest.TestCase):
                                 for for_time in (ts, ts + 0.5, naive, aware):
                                     self.assertEqual(totp.timecode(for_time), counter)
                                     self.assertEqual(totp.at(for_time), expected)
-                                    self.assertTrue(totp.verify(expected, for_time))
-                                    self.assertEqual(totp.verify_and_get_timecode(expected, for_time), counter)
+                                    self.assertTrue(totp.verify(expected, for_time=for_time))
+                                    self.assertEqual(totp.verify_and_get_timecode(expected, for_time=for_time), counter)
                                     for offset in (-1, 1):
                                         adjacent = totp.generate_otp(counter + offset)
-                                        self.assertEqual(totp.at(for_time, offset), adjacent)
-                                        self.assertTrue(totp.verify(adjacent, for_time, valid_window=1))
+                                        self.assertEqual(totp.at(for_time, counter_offset=offset), adjacent)
+                                        self.assertTrue(totp.verify(adjacent, for_time=for_time, valid_window=1))
                                         self.assertEqual(
-                                            totp.verify_and_get_timecode(adjacent, for_time, valid_window=1),
+                                            totp.verify_and_get_timecode(adjacent, for_time=for_time, valid_window=1),
                                             counter + offset,
                                         )
                                 other = totp.generate_otp((timestamps[1 - fold] + delta) // interval)
-                                self.assertFalse(totp.verify(other, naive, valid_window=1))
-                                self.assertIs(totp.verify_and_get_timecode(other, naive, valid_window=1), False)
+                                self.assertFalse(totp.verify(other, for_time=naive, valid_window=1))
+                                with self.assertRaises(pyotp.OTPVerificationError):
+                                    totp.verify_and_get_timecode(other, for_time=naive, valid_window=1)
                                 with patch("pyotp.totp.time.time", return_value=ts):
                                     self.assertEqual(totp.now(), expected)
                                     self.assertTrue(totp.verify(expected))
@@ -393,7 +395,7 @@ class TOTPTimecode(unittest.TestCase):
                 self.assertEqual(totp.at(timestamp), code)
                 self.assertTrue(totp.verify(code, for_time=timestamp))
                 matched = totp.verify_and_get_timecode(code, for_time=timestamp)
-                self.assertIsNot(matched, False)
+                self.assertIs(type(matched), int)
                 self.assertEqual(matched, counter)
 
     def test_timestamps_outside_datetime_range(self):
@@ -447,15 +449,15 @@ class TOTPTimecode(unittest.TestCase):
         for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
             totp = otp_type("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
             calls = (
-                (totp.timecode, (for_time,)),
-                (totp.at, (for_time,)),
-                (totp.verify, ("invalid", for_time)),
-                (totp.verify_and_get_timecode, ("invalid", for_time)),
+                (totp.timecode, (for_time,), {}),
+                (totp.at, (for_time,), {}),
+                (totp.verify, ("invalid",), {"for_time": for_time}),
+                (totp.verify_and_get_timecode, ("invalid",), {"for_time": for_time}),
             )
-            for method, args in calls:
+            for method, args, kwargs in calls:
                 with self.subTest(otp_type=otp_type, method=method.__name__, for_time=for_time):
                     with self.assertRaisesRegex(ValueError, "for_time must be"):
-                        method(*args)
+                        method(*args, **kwargs)
 
     def test_verification_normalizes_time_once(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
@@ -466,12 +468,16 @@ class TOTPTimecode(unittest.TestCase):
             for candidate in (code, "invalid"):
                 with self.subTest(method=verify.__name__, candidate=candidate):
                     with patch.object(totp, "timecode", wraps=totp.timecode) as normalize:
-                        result = verify(candidate, for_time=timestamp, valid_window=2)
+                        if candidate == "invalid" and verify == totp.verify_and_get_timecode:
+                            with self.assertRaises(pyotp.OTPVerificationError):
+                                verify(candidate, for_time=timestamp, valid_window=2)
+                        else:
+                            result = verify(candidate, for_time=timestamp, valid_window=2)
+                            if candidate == code:
+                                self.assertTrue(result)
+                            else:
+                                self.assertIs(result, False)
                         normalize.assert_called_once_with(timestamp)
-                    if candidate == code:
-                        self.assertTrue(result)
-                    else:
-                        self.assertIs(result, False)
 
 
 class SteamTOTP(unittest.TestCase):
@@ -536,30 +542,106 @@ class StringComparisonTest(CompareDigestTest):
     def test_unicode_equal(self):
         self.assertTrue(self.method("ěšč45", "ěšč45"))
 
+    def test_input_length_limit(self):
+        self.assertTrue(self.method("ａ" * 1024, "a" * 1024))
+        self.assertFalse(self.method("a" * 1024, "b" * 1024))
+
+    def test_oversized_input_is_not_normalized(self):
+        inputs = ("a" * 1025, "\u0301\u0323" * 512 + "\u0301", "\u0301\u0323" * 32768)
+        for value in inputs:
+            for s1, s2 in ((value, "a"), ("a", value), (value, value)):
+                with self.subTest(lengths=(len(s1), len(s2))):
+                    with patch("pyotp.utils.unicodedata.normalize") as normalize:
+                        self.assertFalse(self.method(s1, s2))
+                        normalize.assert_not_called()
+
+
+class OTPInputSizeTest(unittest.TestCase):
+    def test_oversized_otp_is_not_normalized(self):
+        oversized = "\u0301\u0323" * 32768
+        hotp = pyotp.HOTP("ABCDEFGH")
+        with patch("pyotp.utils.unicodedata.normalize") as normalize:
+            self.assertFalse(hotp.verify(oversized, 6))
+            for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+                totp = otp_type("ABCDEFGH")
+                for valid_window in (0, 1):
+                    with self.subTest(otp_type=otp_type, valid_window=valid_window):
+                        self.assertFalse(totp.verify(oversized, for_time=200, valid_window=valid_window))
+                        with self.assertRaises(pyotp.OTPVerificationError):
+                            totp.verify_and_get_timecode(oversized, for_time=200, valid_window=valid_window)
+            normalize.assert_not_called()
+
+    def test_fullwidth_otp(self):
+        fullwidth = str.maketrans(
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ",
+        )
+        for digits in (6, 8, 10):
+            with self.subTest(digits=digits):
+                hotp = pyotp.HOTP("ABCDEFGH", digits=digits)
+                self.assertTrue(hotp.verify(hotp.at(6).translate(fullwidth), 6))
+                totp = pyotp.TOTP("ABCDEFGH", digits=digits)
+                code = totp.at(200).translate(fullwidth)
+                self.assertTrue(totp.verify(code, for_time=200))
+                self.assertEqual(totp.verify_and_get_timecode(code, for_time=200), 6)
+
+        steam = pyotp.contrib.Steam("ABCDEFGH")
+        code = steam.at(200).translate(fullwidth)
+        self.assertTrue(steam.verify(code, for_time=200))
+        self.assertEqual(steam.verify_and_get_timecode(code, for_time=200), 6)
+
 
 class CounterOffsetTest(unittest.TestCase):
     def test_counter_offset(self):
         totp = pyotp.TOTP("ABCDEFGH")
         self.assertEqual(totp.at(200), "028307")
-        self.assertTrue(totp.at(200, 1), "681610")
+        self.assertEqual(totp.at(200, counter_offset=1), "681610")
 
 
 class ValidWindowTest(unittest.TestCase):
     def test_valid_window(self):
         totp = pyotp.TOTP("ABCDEFGH")
-        self.assertTrue(totp.verify("451564", 200, 1))
-        self.assertTrue(totp.verify("028307", 200, 1))
-        self.assertTrue(totp.verify("681610", 200, 1))
-        self.assertFalse(totp.verify("195979", 200, 1))
+        self.assertTrue(totp.verify("451564", for_time=200, valid_window=1))
+        self.assertTrue(totp.verify("028307", for_time=200, valid_window=1))
+        self.assertTrue(totp.verify("681610", for_time=200, valid_window=1))
+        self.assertFalse(totp.verify("195979", for_time=200, valid_window=1))
 
 
 class GetTimeCodeTest(unittest.TestCase):
     def test_timecode(self):
         totp = pyotp.TOTP("ABCDEFGH")
-        self.assertEqual(totp.verify_and_get_timecode("451564", 200, 1), 5)
-        self.assertEqual(totp.verify_and_get_timecode("028307", 200, 1), 6)
-        self.assertEqual(totp.verify_and_get_timecode("681610", 200, 1), 7)
-        self.assertFalse(totp.verify_and_get_timecode("195979", 200, 1))
+        self.assertEqual(totp.verify_and_get_timecode("451564", for_time=200, valid_window=1), 5)
+        self.assertEqual(totp.verify_and_get_timecode("028307", for_time=200, valid_window=1), 6)
+        self.assertEqual(totp.verify_and_get_timecode("681610", for_time=200, valid_window=1), 7)
+        with self.assertRaises(pyotp.OTPVerificationError):
+            totp.verify_and_get_timecode("195979", for_time=200, valid_window=1)
+
+    def test_invalid_otp(self):
+        for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+            totp = otp_type("ABCDEFGH")
+            for valid_window in (0, 1):
+                for code in ("", "invalid"):
+                    with self.subTest(otp_type=otp_type, valid_window=valid_window, code=code):
+                        with self.assertRaises(pyotp.OTPVerificationError) as error:
+                            totp.verify_and_get_timecode(code, for_time=200, valid_window=valid_window)
+                        self.assertIsInstance(error.exception, pyotp.PyOTPError)
+                        self.assertFalse(totp.verify(code, for_time=200, valid_window=valid_window))
+
+    def test_current_time(self):
+        for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+            totp = otp_type("ABCDEFGH")
+            with self.subTest(otp_type=otp_type):
+                with patch("pyotp.totp.time.time", return_value=0):
+                    matched = totp.verify_and_get_timecode(totp.at(0))
+                    self.assertIs(type(matched), int)
+                    self.assertEqual(matched, 0)
+                    with self.assertRaises(pyotp.OTPVerificationError):
+                        totp.verify_and_get_timecode("invalid")
+
+    def test_negative_window(self):
+        totp = pyotp.TOTP("ABCDEFGH")
+        with self.assertRaisesRegex(ValueError, "valid_window cannot be negative"):
+            totp.verify_and_get_timecode("028307", for_time=200, valid_window=-1)
 
 
 class DigestFunctionTest(unittest.TestCase):

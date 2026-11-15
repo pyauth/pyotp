@@ -4,9 +4,10 @@ import calendar
 import datetime
 import hashlib
 import time
-from typing import Any, Literal
+from typing import Any
 
 from . import utils
+from .exceptions import OTPVerificationError
 from .otp import OTP
 
 _TIMESTAMP_LIMIT = 253402300800  # 10000-01-01 00:00:00 UTC, exclusive.
@@ -20,6 +21,7 @@ class TOTP(OTP):
     def __init__(
         self,
         s: str,
+        *,
         digits: int = 6,
         digest: Any = None,
         name: str | None = None,
@@ -42,7 +44,7 @@ class TOTP(OTP):
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 
-    def at(self, for_time: int | float | datetime.datetime, counter_offset: int = 0) -> str:
+    def at(self, for_time: int | float | datetime.datetime, *, counter_offset: int = 0) -> str:
         """
         Accepts a Unix timestamp (int or float) or a datetime object.
 
@@ -73,7 +75,9 @@ class TOTP(OTP):
         """
         return self.generate_otp(self.timecode(time.time()))
 
-    def verify(self, otp: str, for_time: int | float | datetime.datetime | None = None, valid_window: int = 0) -> bool:
+    def verify(
+        self, otp: str, *, for_time: int | float | datetime.datetime | None = None, valid_window: int = 0
+    ) -> bool:
         """
         Verifies the OTP passed in against the current time OTP.
 
@@ -101,10 +105,16 @@ class TOTP(OTP):
         return utils.strings_equal(str(otp), str(self.generate_otp(timecode)))
 
     def verify_and_get_timecode(
-        self, otp: str, for_time: int | float | datetime.datetime | None = None, valid_window: int = 0
-    ) -> int | Literal[False]:
+        self, otp: str, *, for_time: int | float | datetime.datetime | None = None, valid_window: int = 0
+    ) -> int:
         """
         Verifies the OTP passed in against the current time OTP and returns the matching timecode.
+
+        .. caution::
+
+            Note the signature difference between this method and :meth:`verify`:
+            this method raises :class:`~pyotp.exceptions.OTPVerificationError`
+            on an OTP mismatch, while :meth:`verify` returns ``False``.
 
         This is useful when callers need to prevent TOTP reuse. An
         application can store the timecode from the last successful
@@ -118,8 +128,9 @@ class TOTP(OTP):
         :param otp: the OTP to check against
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this counter ticks before and after the current one
-        :returns: matching timecode if verification succeeded, False otherwise
-        :raises ValueError: if for_time is before the Unix epoch or after year 9999 in UTC
+        :returns: matching timecode if verification succeeded
+        :raises pyotp.exceptions.OTPVerificationError: if the OTP does not match within the valid window
+        :raises ValueError: if valid_window is negative or for_time is before the Unix epoch or after year 9999 in UTC
         """
         if for_time is None:
             for_time = time.time()
@@ -131,9 +142,9 @@ class TOTP(OTP):
         for i in range(-valid_window, valid_window + 1):
             if utils.strings_equal(str(otp), str(self.generate_otp(timecode + i))):
                 return timecode + i
-        return False
+        raise OTPVerificationError("OTP verification failed")
 
-    def provisioning_uri(self, name: str | None = None, issuer_name: str | None = None, **kwargs) -> str:
+    def provisioning_uri(self, *, name: str | None = None, issuer_name: str | None = None, **kwargs) -> str:
         """
         Returns the provisioning URI for the OTP.  This can then be
         encoded in a QR Code and used to provision an OTP app like
