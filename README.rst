@@ -59,15 +59,14 @@ Time-based OTPs
 .. code:: python
 
     import pyotp
-    import time
 
-    totp = pyotp.TOTP('base32secret3232')
-    totp.now() # => '492039'
+    totp = pyotp.TOTP('base32secret32323232323232')
+    totp.now()  # Current OTP; changes with the clock.
 
-    # OTP verified for current time
-    totp.verify('492039') # => True
-    time.sleep(30)
-    totp.verify('492039') # => False
+    # A fixed Unix timestamp makes these example outputs reproducible.
+    totp.at(1234567890) # => '763850'
+    totp.verify('763850', for_time=1234567890) # => True
+    totp.verify('763850', for_time=1234567920) # => False
 
 Preventing replay attacks
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -120,14 +119,14 @@ Counter-based OTPs
 
     import pyotp
     
-    hotp = pyotp.HOTP('base32secret3232')
-    hotp.at(0) # => '260182'
-    hotp.at(1) # => '055283'
-    hotp.at(1401) # => '316439'
+    hotp = pyotp.HOTP('base32secret32323232323232')
+    hotp.at(0) # => '995369'
+    hotp.at(1) # => '511453'
+    hotp.at(1401) # => '666948'
 
     # OTP verified with a counter
-    hotp.verify('316439', 1401) # => True
-    hotp.verify('316439', 1402) # => False
+    hotp.verify('666948', 1401) # => True
+    hotp.verify('666948', 1402) # => False
 
 Generating a Secret Key
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -144,6 +143,33 @@ Some applications want the secret key to be formatted as a hex-encoded string:
 
     pyotp.random_hex()  # returns a 40-character hex-encoded secret
 
+Secret strength and hash functions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`NIST SP 800-63B-4 section 3.1.4.1 <https://pages.nist.gov/800-63-4/sp800-63b.html>`_
+requires the OTP key and algorithm to provide at least 112 bits of security strength; section 3.1.4.2 describes
+verifier requirements. PyOTP rejects secrets shorter than 112 bits (14 bytes) after Base32 decoding when generating
+or verifying an OTP. Character count alone is not the check, and sufficient length does not establish entropy.
+Generate a fresh random secret for each credential with ``random_base32()``, whose default is 160 bits.
+The recognizable seeds in this README are public teaching examples, not production secrets.
+
+PyOTP uses HMAC hash functions, not encryption ciphers. The URI parser supports SHA-1, SHA-256, and SHA-512.
+`NIST SP 800-131A Rev. 2 sections 9 and 10 <https://doi.org/10.6028/NIST.SP.800-131Ar2>`_ permit these for HMAC
+with keys of at least 112 bits. SHA-1 remains the interoperability default, but NIST recommends migrating to SHA-2
+or SHA-3 and has announced a `SHA-1 transition by December 31, 2030
+<https://csrc.nist.gov/projects/hash-functions/nist-policy-on-hash-functions>`_. Use SHA-256 or SHA-512 when both
+the authenticator and verifier support it.
+
+The ``digest`` argument also accepts other compatible hash implementations; it does not enforce a NIST allowlist.
+SHA-224, SHA-384, SHA-512/224, SHA-512/256, and the four fixed-length SHA-3 functions are on the
+`NIST approved hash list <https://csrc.nist.gov/projects/hash-functions>`_. BLAKE2b, BLAKE2s, SM3, RIPEMD-160,
+and MD5-SHA1 are not on that list, even where the Python/OpenSSL installation lets PyOTP use them.
+MD5 and SHAKE are not supported OTP digests. Passing a key-length check alone does not establish NIST conformance.
+
+The RFC 4226 and RFC 6238 test vectors use 160-, 256-, or 512-bit keys and meet the key-length requirement.
+Their published, predictable keys are only suitable for testing. Legacy 80-bit example seeds do not meet the
+requirement and must be replaced through re-enrollment, not by padding an existing production secret.
+
 Google Authenticator Compatible
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -152,13 +178,13 @@ the ability to generate provisioning URIs for use with the QR Code scanner built
 
 .. code:: python
 
-    pyotp.totp.TOTP('JBSWY3DPEHPK3PXP').provisioning_uri(name='alice@google.com', issuer_name='Secure App')
+    pyotp.totp.TOTP('JBSWY3DPEHPK3PXPJBSWY3DP').provisioning_uri(name='alice@google.com', issuer_name='Secure App')
 
-    >>> 'otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App'
+    # => 'otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App'
 
-    pyotp.hotp.HOTP('JBSWY3DPEHPK3PXP').provisioning_uri(name="alice@google.com", issuer_name="Secure App", initial_count=0)
+    pyotp.hotp.HOTP('JBSWY3DPEHPK3PXPJBSWY3DP').provisioning_uri(name="alice@google.com", issuer_name="Secure App", initial_count=0)
 
-    >>> 'otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0'
+    # => 'otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App&counter=0'
 
 This URL can then be rendered as a QR Code (for example, using https://github.com/soldair/node-qrcode) which can then be
 scanned and added to the users list of OTP credentials.
@@ -167,27 +193,27 @@ Parsing these URLs is also supported:
 
 .. code:: python
 
-    pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App')
+    totp = pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App')
 
-    >>> <pyotp.totp.TOTP object at 0xFFFFFFFF>
+    type(totp).__name__ # => 'TOTP'
 
-    pyotp.parse_uri('otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0'
+    hotp = pyotp.parse_uri('otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App&counter=0')
 
-    >>> <pyotp.totp.HOTP object at 0xFFFFFFFF>
+    type(hotp).__name__ # => 'HOTP'
 
 Working example
 ~~~~~~~~~~~~~~~
 
 Scan the following barcode with your phone's OTP app (e.g. Google Authenticator):
 
-.. image:: https://quickchart.io/qr?size=250&text=otpauth%3A%2F%2Ftotp%2Falice%40google.com%3Fsecret%3DJBSWY3DPEHPK3PXP
+.. image:: https://quickchart.io/qr?size=250&text=otpauth%3A%2F%2Ftotp%2Falice%40google.com%3Fsecret%3DJBSWY3DPEHPK3PXPJBSWY3DP
 
 Now run the following and compare the output:
 
 .. code:: python
 
     import pyotp
-    totp = pyotp.TOTP("JBSWY3DPEHPK3PXP")
+    totp = pyotp.TOTP("JBSWY3DPEHPK3PXPJBSWY3DP")
     print("Current OTP:", totp.now())
 
 Third-party contributions

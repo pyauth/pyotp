@@ -52,13 +52,18 @@ class OTP:
         return str_code[-self.digits :]
 
     def byte_secret(self) -> bytes:
+        """Decode the secret and enforce a minimum key length of 112 bits.
+
+        See NIST SP 800-63B-4, sections 3.1.4.1 and 3.1.4.2:
+        https://pages.nist.gov/800-63-4/sp800-63b.html
+        """
         secret = self.secret
         missing_padding = len(secret) % 8
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
         decoded = base64.b32decode(secret, casefold=True)
-        if len(decoded) < 10:
-            raise ValueError("Secrets must be at least 80 bits after decoding")
+        if len(decoded) < 14:
+            raise ValueError("Secrets must be at least 112 bits after decoding")
         return decoded
 
     @staticmethod
