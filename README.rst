@@ -115,11 +115,6 @@ If you enable ``valid_window``, persist the returned matching timecode, which ma
     as the same code, but their raw strings and hashes differ. An attacker could submit another spelling of an
     already-used code to bypass such a check. Track the accepted counter instead.
 
-``HOTP.verify(otp, counter)`` is also stateless. Persist the next expected counter for each credential in the shared
-database. After successful verification, atomically advance it from the counter you checked to that counter plus one.
-Grant authentication only if that update succeeds and commits; if another request has already advanced the counter,
-reject this request. HOTP takes the counter explicitly, so the application already knows which counter to record.
-
 Counter-based OTPs
 ~~~~~~~~~~~~~~~~~~
 .. code:: python
