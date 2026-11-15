@@ -23,9 +23,9 @@ class HOTP(OTP):
         initial_count: int = 0,
     ) -> None:
         """
-        :param s: secret in base32 format
+        :param s: secret in base32 format, at least 128 bits (16 bytes) after decoding
         :param initial_count: starting HMAC counter value, defaults to 0
-        :param digits: number of integers in the OTP. Some apps expect this to be 6 digits, others support more.
+        :param digits: number of digits in the OTP, from 6 to 10
         :param digest: digest function to use in the HMAC (expected to be SHA1)
         :param name: account name
         :param issuer: issuer

@@ -17,11 +17,13 @@ class Steam(TOTP):
         self, s: str, *, name: str | None = None, issuer: str | None = None, interval: int = 30, digits: int = 5
     ) -> None:
         """
-        :param s: secret in base32 format
-        :param interval: the time interval in seconds for OTP. This defaults to 30.
+        :param s: secret in base32 format, at least 128 bits (16 bytes) after decoding
+        :param interval: positive time interval in seconds for OTP. This defaults to 30.
         :param name: account name
         :param issuer: issuer
         """
+        if interval <= 0:
+            raise ValueError("interval must be positive")
         self.interval = interval
         super().__init__(s=s, digits=10, digest=hashlib.sha1, name=name, issuer=issuer)
 
