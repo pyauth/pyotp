@@ -9,6 +9,8 @@ from typing import Any
 class OTP:
     """
     Base class for OTP handlers.
+
+    The Base32 secret and its decoded length are validated at construction.
     """
 
     def __init__(
@@ -29,6 +31,8 @@ class OTP:
         self.secret = s
         self.name = name or "Secret"
         self.issuer = issuer
+        # Validate the Base32 encoding and decoded key length before use.
+        self.byte_secret()
 
     def generate_otp(self, input: int) -> str:
         """
