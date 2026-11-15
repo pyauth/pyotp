@@ -153,11 +153,11 @@ the ability to generate provisioning URIs for use with the QR Code scanner built
 
     pyotp.totp.TOTP('JBSWY3DPEHPK3PXPJBSWY3DP').provisioning_uri(name='alice@google.com', issuer_name='Secure App')
 
-    # => 'otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App'
+    >>> 'otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App'
 
     pyotp.hotp.HOTP('JBSWY3DPEHPK3PXPJBSWY3DP').provisioning_uri(name="alice@google.com", issuer_name="Secure App", initial_count=0)
 
-    # => 'otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App&counter=0'
+    >>> 'otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App&counter=0'
 
 This URL can then be rendered as a QR Code (for example, using https://github.com/soldair/node-qrcode) which can then be
 scanned and added to the users list of OTP credentials.
@@ -166,13 +166,13 @@ Parsing these URLs is also supported:
 
 .. code:: python
 
-    totp = pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App')
+    pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App')
 
-    type(totp).__name__ # => 'TOTP'
+    >>> <pyotp.totp.TOTP object at 0xFFFFFFFF>
 
-    hotp = pyotp.parse_uri('otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App&counter=0')
+    pyotp.parse_uri('otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DP&issuer=Secure%20App&counter=0')
 
-    type(hotp).__name__ # => 'HOTP'
+    >>> <pyotp.hotp.HOTP object at 0xFFFFFFFF>
 
 Working example
 ~~~~~~~~~~~~~~~
