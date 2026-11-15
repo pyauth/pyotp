@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Sequence
 from re import split
-from typing import Any, Sequence
+from typing import Any
 from urllib.parse import parse_qsl, unquote, urlparse
 
 from . import contrib
