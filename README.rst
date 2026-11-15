@@ -79,7 +79,7 @@ it is not the wall-clock timestamp when verification occurred. Reject a timecode
 last accepted timecode.
 
 ``verify_and_get_timecode()`` raises ``pyotp.OTPVerificationError`` (a subclass of ``pyotp.PyOTPError``) if the OTP
-does not match within the allowed window. Successful verification always returns an integer timecode, including ``0``.
+does not match within the allowed window. Successful verification always returns an integer timecode.
 
 The check and update must be atomic, so two concurrent requests cannot both accept the same timecode. For example,
 the following function uses a ``sqlite3.Connection`` named ``db`` and a ``totp_credentials`` table with one existing
