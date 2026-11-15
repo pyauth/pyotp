@@ -4,6 +4,8 @@ import unicodedata
 from hmac import compare_digest
 from urllib.parse import quote, urlencode, urlparse
 
+_MAX_COMPARISON_LENGTH = 1024
+
 
 def build_uri(
     secret: str,
@@ -86,7 +88,13 @@ def strings_equal(s1: str, s2: str) -> bool:
     character. This avoids that by scanning the whole string, though we
     still reveal to a timing attack whether the strings are the same
     length.
+
+    Returns False if either input exceeds 1024 Unicode code points.
+    The limit is checked before normalization to bound its CPU cost
+    and mitigate CVE-2026-3276.
     """
+    if len(s1) > _MAX_COMPARISON_LENGTH or len(s2) > _MAX_COMPARISON_LENGTH:
+        return False
     s1 = unicodedata.normalize("NFKC", s1)
     s2 = unicodedata.normalize("NFKC", s2)
     return compare_digest(s1.encode("utf-8"), s2.encode("utf-8"))

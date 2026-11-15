@@ -82,7 +82,7 @@ class TOTP(OTP):
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
-        :param otp: the OTP to check against
+        :param otp: the OTP to check against; inputs over 1024 Unicode code points are rejected
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
         :returns: True if verification succeeded, False otherwise
@@ -123,7 +123,7 @@ class TOTP(OTP):
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
-        :param otp: the OTP to check against
+        :param otp: the OTP to check against; inputs over 1024 Unicode code points are rejected
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this counter ticks before and after the current one
         :returns: matching timecode if verification succeeded

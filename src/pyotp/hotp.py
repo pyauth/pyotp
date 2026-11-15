@@ -50,7 +50,7 @@ class HOTP(OTP):
         """
         Verifies the OTP passed in against the current counter OTP.
 
-        :param otp: the OTP to check against
+        :param otp: the OTP to check against; inputs over 1024 Unicode code points are rejected
         :param counter: the OTP HMAC counter
         """
         return utils.strings_equal(str(otp), str(self.at(counter)))

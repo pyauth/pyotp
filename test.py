@@ -541,6 +541,54 @@ class StringComparisonTest(CompareDigestTest):
     def test_unicode_equal(self):
         self.assertTrue(self.method("ěšč45", "ěšč45"))
 
+    def test_input_length_limit(self):
+        self.assertTrue(self.method("ａ" * 1024, "a" * 1024))
+        self.assertFalse(self.method("a" * 1024, "b" * 1024))
+
+    def test_oversized_input_is_not_normalized(self):
+        inputs = ("a" * 1025, "\u0301\u0323" * 512 + "\u0301", "\u0301\u0323" * 32768)
+        for value in inputs:
+            for s1, s2 in ((value, "a"), ("a", value), (value, value)):
+                with self.subTest(lengths=(len(s1), len(s2))):
+                    with patch("pyotp.utils.unicodedata.normalize") as normalize:
+                        self.assertFalse(self.method(s1, s2))
+                        normalize.assert_not_called()
+
+
+class OTPInputSizeTest(unittest.TestCase):
+    def test_oversized_otp_is_not_normalized(self):
+        oversized = "\u0301\u0323" * 32768
+        hotp = pyotp.HOTP("ABCDEFGH")
+        with patch("pyotp.utils.unicodedata.normalize") as normalize:
+            self.assertFalse(hotp.verify(oversized, 6))
+            for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+                totp = otp_type("ABCDEFGH")
+                for valid_window in (0, 1):
+                    with self.subTest(otp_type=otp_type, valid_window=valid_window):
+                        self.assertFalse(totp.verify(oversized, 200, valid_window))
+                        with self.assertRaises(pyotp.OTPVerificationError):
+                            totp.verify_and_get_timecode(oversized, 200, valid_window)
+            normalize.assert_not_called()
+
+    def test_fullwidth_otp(self):
+        fullwidth = str.maketrans(
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+            "０１２３４５６７８９ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ",
+        )
+        for digits in (6, 8, 10):
+            with self.subTest(digits=digits):
+                hotp = pyotp.HOTP("ABCDEFGH", digits=digits)
+                self.assertTrue(hotp.verify(hotp.at(6).translate(fullwidth), 6))
+                totp = pyotp.TOTP("ABCDEFGH", digits=digits)
+                code = totp.at(200).translate(fullwidth)
+                self.assertTrue(totp.verify(code, 200))
+                self.assertEqual(totp.verify_and_get_timecode(code, 200), 6)
+
+        steam = pyotp.contrib.Steam("ABCDEFGH")
+        code = steam.at(200).translate(fullwidth)
+        self.assertTrue(steam.verify(code, 200))
+        self.assertEqual(steam.verify_and_get_timecode(code, 200), 6)
+
 
 class CounterOffsetTest(unittest.TestCase):
     def test_counter_offset(self):
