@@ -18,9 +18,9 @@ minimum, application implementers should follow this checklist:
 
 - Ensure transport confidentiality by using HTTPS
 - Ensure HOTP/TOTP secret confidentiality by storing secrets in a controlled access database
-- Deny replay attacks by rejecting one-time passwords that have been used by the client (this requires storing the most
-  recently authenticated timestamp, OTP, or hash of the OTP in your database, and rejecting the OTP when a match is
-  seen)
+- Deny replay attacks by persisting the last accepted OTP counter for each credential and rejecting reused counters.
+  For TOTP, use ``verify_and_get_timecode()`` as described in `Preventing replay attacks`_ below. For HOTP, advance the
+  stored counter after successful verification.
 - Throttle (rate limit) brute-force attacks against your application's login functionality (see RFC 4226, section 7.3)
 - When implementing a "greenfield" application, consider supporting
   `FIDO U2F <https://en.wikipedia.org/wiki/Universal_2nd_Factor>`_/`WebAuthn <https://www.w3.org/TR/webauthn/>`_ in
@@ -69,6 +69,46 @@ Time-based OTPs
     totp.verify('492039') # => True
     time.sleep(30)
     totp.verify('492039') # => False
+
+Preventing replay attacks
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``TOTP.verify()`` and ``TOTP.verify_and_get_timecode()`` are stateless: they can accept the same OTP repeatedly while
+it remains valid. To prevent reuse, call ``verify_and_get_timecode()`` and persist its returned timecode for each
+credential in a database shared by all application workers. The timecode identifies the matching TOTP interval;
+it is not the wall-clock timestamp when verification occurred. Reject a timecode that is less than or equal to the
+last accepted timecode.
+
+The check and update must be atomic, so two concurrent requests cannot both accept the same timecode. For example,
+the following function uses a ``sqlite3.Connection`` named ``db`` and a ``totp_credentials`` table with one existing
+row per credential, an ``id`` primary key, and a nullable integer ``last_timecode`` column. Initialize
+``last_timecode`` to ``NULL`` for a new credential. ``totp`` and ``credential_id`` must refer to the same credential.
+
+.. code:: python
+
+    def verify_totp_once(db, credential_id, totp, otp):
+        matched_timecode = totp.verify_and_get_timecode(otp)
+        if matched_timecode is False:
+            return False
+
+        with db:
+            updated = db.execute(
+                "UPDATE totp_credentials SET last_timecode = ? "
+                "WHERE id = ? AND (last_timecode IS NULL OR last_timecode < ?)",
+                (matched_timecode, credential_id, matched_timecode),
+            )
+        return updated.rowcount == 1
+
+Grant authentication only when this function returns ``True``, after the database transaction has committed.
+Use ``is False`` rather than a truthiness check because timecode ``0`` is valid. If you enable ``valid_window``,
+persist the returned matching timecode, which may differ from the server's current timecode.
+
+.. warning::
+
+    Do not use the raw submitted OTP, or a hash of that raw value, as the replay-detection key. PyOTP applies Unicode
+    NFKC normalization when comparing OTPs: for example, ``123456`` and ``１２３４５６`` are treated as the same code,
+    but their raw strings and hashes differ. An attacker could submit another spelling of an already-used code to
+    bypass such a check. Tracking the matched timecode avoids this mismatch.
 
 Counter-based OTPs
 ~~~~~~~~~~~~~~~~~~
