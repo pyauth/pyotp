@@ -79,6 +79,9 @@ credential in a database shared by all application workers. The timecode identif
 it is not the wall-clock timestamp when verification occurred. Reject a timecode that is less than or equal to the
 last accepted timecode.
 
+``verify_and_get_timecode()`` raises ``pyotp.OTPVerificationError`` (a subclass of ``pyotp.PyOTPError``) if the OTP
+does not match within the allowed window. Successful verification always returns an integer timecode, including ``0``.
+
 The check and update must be atomic, so two concurrent requests cannot both accept the same timecode. For example,
 the following function uses a ``sqlite3.Connection`` named ``db`` and a ``totp_credentials`` table with one existing
 row per credential, an ``id`` primary key, and a nullable integer ``last_timecode`` column. Initialize
@@ -86,9 +89,12 @@ row per credential, an ``id`` primary key, and a nullable integer ``last_timecod
 
 .. code:: python
 
+    import pyotp
+
     def verify_totp_once(db, credential_id, totp, otp):
-        matched_timecode = totp.verify_and_get_timecode(otp)
-        if matched_timecode is False:
+        try:
+            matched_timecode = totp.verify_and_get_timecode(otp)
+        except pyotp.OTPVerificationError:
             return False
 
         with db:
@@ -100,8 +106,7 @@ row per credential, an ``id`` primary key, and a nullable integer ``last_timecod
         return updated.rowcount == 1
 
 Grant authentication only when this function returns ``True``, after the database transaction has committed.
-Use ``is False`` rather than a truthiness check because timecode ``0`` is valid. If you enable ``valid_window``,
-persist the returned matching timecode, which may differ from the server's current timecode.
+If you enable ``valid_window``, persist the returned matching timecode, which may differ from the server's current timecode.
 
 .. warning::
 

@@ -7,6 +7,7 @@ from urllib.parse import parse_qsl, unquote, urlparse
 
 from . import contrib
 from .compat import random
+from .exceptions import OTPVerificationError, PyOTPError
 from .hotp import HOTP
 from .otp import OTP
 from .totp import TOTP
