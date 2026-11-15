@@ -15,7 +15,7 @@ def build_uri(
     algorithm: str | None = None,
     digits: int | None = None,
     period: int | None = None,
-    **kwargs,
+    **kwargs: str,
 ) -> str:
     """
     Returns the provisioning URI for the OTP; works for either TOTP or HOTP.
