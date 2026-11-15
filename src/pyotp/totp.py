@@ -34,15 +34,19 @@ class TOTP(OTP):
         :param digest: digest function to use in the HMAC (expected to be SHA1)
         :param name: account name
         :param issuer: issuer
-        :param interval: the time interval in seconds for OTP. This defaults to 30.
+        :param interval: the time interval in seconds, greater than 0 and at most 120. Defaults to 30.
+
+        See `NIST SP 800-63B-4 section 3.1.4.1
+        <https://pages.nist.gov/800-63-4/sp800-63b.html>`_.
         """
         if digest is None:
             digest = hashlib.sha1
         elif digest in [hashlib.md5, hashlib.shake_128]:
             raise ValueError("selected digest function must generate digest size greater than or equals to 18 bytes")
 
-        if interval <= 0:
-            raise ValueError("interval must be positive")
+        # NIST SP 800-63B-4 section 3.1.4.1 requires a new nonce at least every two minutes.
+        if not 0 < interval <= 120:
+            raise ValueError("interval must be positive and at most 120 seconds")
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 

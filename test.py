@@ -57,6 +57,44 @@ class OTPConfigurationTest(unittest.TestCase):
                 self.assertEqual(totp.at(interval), "287082")
 
 
+class TOTPIntervalLimitTest(unittest.TestCase):
+    def test_interval_bounds(self):
+        secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+            for interval in (0, -1, 121, 300, float("inf"), float("nan")):
+                with self.subTest(otp_type=otp_type, interval=interval):
+                    with self.assertRaisesRegex(ValueError, "interval must be positive and at most 120 seconds"):
+                        otp_type(secret, interval=interval)
+            for interval in (1, 30, 120):
+                with self.subTest(otp_type=otp_type, interval=interval):
+                    otp_type(secret, interval=interval)
+
+    def test_maximum_interval_changes_counter(self):
+        totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", interval=120)
+        self.assertEqual(totp.timecode(119), 0)
+        self.assertEqual(totp.timecode(120), 1)
+        self.assertEqual(totp.at(119), "755224")
+        self.assertEqual(totp.at(120), "287082")
+
+    def test_uri_period_limit(self):
+        secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        for encoder in (None, "steam"):
+            for period in (120, 121):
+                query = {"secret": secret, "period": period}
+                if encoder is not None:
+                    query["encoder"] = encoder
+                uri = "otpauth://totp/Example?" + urlencode(query)
+                with self.subTest(encoder=encoder, period=period):
+                    if period > 120:
+                        with self.assertRaisesRegex(ValueError, "at most 120 seconds"):
+                            pyotp.parse_uri(uri)
+                    else:
+                        otp = pyotp.parse_uri(uri)
+                        if encoder is None:
+                            self.assertEqual(otp.interval, 120)
+                            self.assertEqual(pyotp.parse_uri(otp.provisioning_uri()).interval, 120)
+
+
 class HOTPExampleValuesFromTheRFC(unittest.TestCase):
     def test_match_rfc(self):
         # 12345678901234567890 in Bas32
