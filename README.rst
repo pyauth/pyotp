@@ -62,7 +62,7 @@ Time-based OTPs
     import pyotp
     import time
 
-    totp = pyotp.TOTP('base32secret3232base32secret3232')
+    totp = pyotp.TOTP('base32secret3232')
     totp.now() # => '492039'
 
     # OTP verified for current time
@@ -121,14 +121,14 @@ Counter-based OTPs
 
     import pyotp
     
-    hotp = pyotp.HOTP('base32secret3232base32secret3232')
-    hotp.at(0) # => '037845'
-    hotp.at(1) # => '561824'
-    hotp.at(1401) # => '114775'
+    hotp = pyotp.HOTP('base32secret3232')
+    hotp.at(0) # => '260182'
+    hotp.at(1) # => '055283'
+    hotp.at(1401) # => '316439'
 
     # OTP verified with a counter
-    hotp.verify('114775', 1401) # => True
-    hotp.verify('114775', 1402) # => False
+    hotp.verify('316439', 1401) # => True
+    hotp.verify('316439', 1402) # => False
 
 Generating a Secret Key
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -153,13 +153,13 @@ the ability to generate provisioning URIs for use with the QR Code scanner built
 
 .. code:: python
 
-    pyotp.totp.TOTP('JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP').provisioning_uri(name='alice@google.com', issuer_name='Secure App')
+    pyotp.totp.TOTP('JBSWY3DPEHPK3PXP').provisioning_uri(name='alice@google.com', issuer_name='Secure App')
 
-    >>> 'otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Secure%20App'
+    >>> 'otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App'
 
-    pyotp.hotp.HOTP('JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP').provisioning_uri(name="alice@google.com", issuer_name="Secure App", initial_count=0)
+    pyotp.hotp.HOTP('JBSWY3DPEHPK3PXP').provisioning_uri(name="alice@google.com", issuer_name="Secure App", initial_count=0)
 
-    >>> 'otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0'
+    >>> 'otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0'
 
 This URL can then be rendered as a QR Code (for example, using https://github.com/soldair/node-qrcode) which can then be
 scanned and added to the users list of OTP credentials.
@@ -168,11 +168,11 @@ Parsing these URLs is also supported:
 
 .. code:: python
 
-    pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Secure%20App')
+    pyotp.parse_uri('otpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App')
 
     >>> <pyotp.totp.TOTP object at 0xFFFFFFFF>
 
-    pyotp.parse_uri('otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0')
+    pyotp.parse_uri('otpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0'
 
     >>> <pyotp.totp.HOTP object at 0xFFFFFFFF>
 
@@ -181,14 +181,14 @@ Working example
 
 Scan the following barcode with your phone's OTP app (e.g. Google Authenticator):
 
-.. image:: https://quickchart.io/qr?size=250&text=otpauth%3A%2F%2Ftotp%2Falice%40google.com%3Fsecret%3DJBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP
+.. image:: https://quickchart.io/qr?size=250&text=otpauth%3A%2F%2Ftotp%2Falice%40google.com%3Fsecret%3DJBSWY3DPEHPK3PXP
 
 Now run the following and compare the output:
 
 .. code:: python
 
     import pyotp
-    totp = pyotp.TOTP("JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP")
+    totp = pyotp.TOTP("JBSWY3DPEHPK3PXP")
     print("Current OTP:", totp.now())
 
 Third-party contributions
