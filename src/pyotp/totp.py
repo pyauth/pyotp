@@ -82,7 +82,7 @@ class TOTP(OTP):
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
-        :param otp: the OTP to check against; inputs over 1024 Unicode code points are rejected
+        :param otp: the OTP to check against
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this many counter ticks before and after the current one
         :returns: True if verification succeeded, False otherwise
@@ -109,10 +109,9 @@ class TOTP(OTP):
 
         .. caution::
 
-            A failed OTP match raises :class:`~pyotp.exceptions.OTPVerificationError`;
-            :meth:`verify` returns ``False`` instead. A successful match returns an
-            integer timecode, including ``0``, so do not use a truthiness check to
-            determine whether verification succeeded.
+            Note the signature difference between this method and :meth:`verify`:
+            this method raises :class:`~pyotp.exceptions.OTPVerificationError`
+            on an OTP mismatch, while :meth:`verify` returns ``False``.
 
         This is useful when callers need to prevent TOTP reuse. An
         application can store the timecode from the last successful
@@ -123,7 +122,7 @@ class TOTP(OTP):
         Prefer Unix timestamps or timezone-aware UTC datetimes. Naive
         datetimes are interpreted as local time, respecting ``fold``.
 
-        :param otp: the OTP to check against; inputs over 1024 Unicode code points are rejected
+        :param otp: the OTP to check against
         :param for_time: Unix timestamp (int or float) or datetime to check OTP at (defaults to now)
         :param valid_window: extends the validity to this counter ticks before and after the current one
         :returns: matching timecode if verification succeeded
