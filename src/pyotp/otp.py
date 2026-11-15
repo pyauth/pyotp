@@ -21,8 +21,8 @@ class OTP:
         issuer: str | None = None,
     ) -> None:
         self.digits = digits
-        if digits > 10:
-            raise ValueError("digits must be no greater than 10")
+        if not 6 <= digits <= 10:
+            raise ValueError("digits must be between 6 and 10")
         self.digest = digest
         if digest in [hashlib.md5, hashlib.shake_128]:
             raise ValueError("selected digest function must generate digest size greater than or equals to 18 bytes")
@@ -56,7 +56,10 @@ class OTP:
         missing_padding = len(secret) % 8
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
-        return base64.b32decode(secret, casefold=True)
+        decoded = base64.b32decode(secret, casefold=True)
+        if len(decoded) < 10:
+            raise ValueError("Secrets must be at least 80 bits after decoding")
+        return decoded
 
     @staticmethod
     def int_to_bytestring(i: int, *, padding: int = 8) -> bytes:

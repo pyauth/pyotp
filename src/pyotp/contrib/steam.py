@@ -22,6 +22,8 @@ class Steam(TOTP):
         :param name: account name
         :param issuer: issuer
         """
+        if interval <= 0:
+            raise ValueError("interval must be positive")
         self.interval = interval
         super().__init__(s=s, digits=10, digest=hashlib.sha1, name=name, issuer=issuer)
 

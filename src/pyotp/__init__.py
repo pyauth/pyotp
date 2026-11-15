@@ -74,7 +74,15 @@ def parse_uri(uri: str) -> OTP:
         otp_data["name"] = unquote(accountinfo_parts[1])
 
     # Parse values
-    for key, value in parse_qsl(parsed_uri.query):
+    security_parameters = {"secret", "issuer", "algorithm", "encoder", "digits", "period", "counter"}
+    seen_parameters: set[str] = set()
+    for key, value in parse_qsl(parsed_uri.query, keep_blank_values=True):
+        if key in security_parameters:
+            if key in seen_parameters:
+                raise ValueError(f"Duplicate {key} parameter")
+            seen_parameters.add(key)
+        if not value:
+            continue
         if key == "secret":
             secret = value
         elif key == "issuer":

@@ -30,7 +30,7 @@ class TOTP(OTP):
     ) -> None:
         """
         :param s: secret in base32 format
-        :param digits: number of integers in the OTP. Some apps expect this to be 6 digits, others support more.
+        :param digits: number of digits in the OTP, from 6 to 10
         :param digest: digest function to use in the HMAC (expected to be SHA1)
         :param name: account name
         :param issuer: issuer
@@ -41,6 +41,8 @@ class TOTP(OTP):
         elif digest in [hashlib.md5, hashlib.shake_128]:
             raise ValueError("selected digest function must generate digest size greater than or equals to 18 bytes")
 
+        if interval <= 0:
+            raise ValueError("interval must be positive")
         self.interval = interval
         super().__init__(s=s, digits=digits, digest=digest, name=name, issuer=issuer)
 
