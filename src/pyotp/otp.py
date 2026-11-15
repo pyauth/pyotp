@@ -27,6 +27,7 @@ class OTP:
         if digest in [hashlib.md5, hashlib.shake_128]:
             raise ValueError("selected digest function must generate digest size greater than or equals to 18 bytes")
         self.secret = s
+        # Validate the seed now rather than waiting until OTP generation.
         self.byte_secret()
         self.name = name or "Secret"
         self.issuer = issuer
