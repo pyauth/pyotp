@@ -44,6 +44,9 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "vcs"
 
+[tool.mypy]
+strict = true
+
 [tool.black]
 line-length = 120
 

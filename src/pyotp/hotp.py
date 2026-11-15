@@ -62,7 +62,7 @@ class HOTP(OTP):
         name: str | None = None,
         initial_count: int | None = None,
         issuer_name: str | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> str:
         """
         Returns the provisioning URI for the OTP.  This can then be
