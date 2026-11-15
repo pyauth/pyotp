@@ -19,20 +19,42 @@ import pyotp
 class OTPConfigurationTest(unittest.TestCase):
     def test_decoded_seed_length(self):
         for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP, pyotp.contrib.Steam):
-            for length in (0, 1, 5, 9, 10, 11, 20):
+            for length in (0, 1, 5, 10, 13, 14, 15, 20):
                 raw = bytes(range(length))
                 encoded = base64.b32encode(raw).decode("ascii")
                 for seed in (encoded, encoded.rstrip("="), encoded.lower()):
                     with self.subTest(otp_type=otp_type, length=length, seed=seed):
-                        otp = otp_type(seed)
-                        if length < 10:
-                            with self.assertRaisesRegex(ValueError, "at least 80 bits after decoding"):
-                                otp.byte_secret()
-                            with self.assertRaisesRegex(ValueError, "at least 80 bits after decoding"):
-                                otp.generate_otp(0)
+                        if length < 14:
+                            with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+                                otp_type(seed)
                         else:
+                            otp = otp_type(seed)
                             self.assertEqual(otp.byte_secret(), raw)
                             self.assertEqual(len(otp.generate_otp(0)), 5 if otp_type is pyotp.contrib.Steam else 6)
+
+    def test_invalid_base32_is_rejected_at_construction(self):
+        for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP, pyotp.contrib.Steam):
+            for secret in ("SOME_SECRET", "abc", "!" * 32):
+                with self.subTest(otp_type=otp_type, secret=secret):
+                    with self.assertRaises(ValueError):
+                        otp_type(secret)
+
+    def test_modified_short_secrets_are_rejected_by_verification(self):
+        valid_secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        for length in (10, 13):
+            secret = base64.b32encode(bytes(range(length))).decode("ascii")
+            with self.subTest(length=length):
+                hotp = pyotp.HOTP(valid_secret)
+                hotp.secret = secret
+                with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+                    hotp.verify("123456", 0)
+                for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
+                    otp = otp_type(valid_secret)
+                    otp.secret = secret
+                    with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+                        otp.verify("123456", for_time=0)
+                    with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+                        otp.verify_and_get_timecode("123456", for_time=0)
 
     def test_digit_range(self):
         for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP):
@@ -124,30 +146,31 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertFalse(hotp.verify("５２０４８９", 10))
 
     def test_provisioning_uri(self):
-        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival")
+        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival")
 
         url = urlparse(hotp.provisioning_uri())
         self.assertEqual(url.scheme, "otpauth")
         self.assertEqual(url.netloc, "hotp")
         self.assertEqual(url.path, "/mark%40percival")
-        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "counter": "0"})
+        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", "counter": "0"})
         self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
 
-        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival", initial_count=12)
+        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival", initial_count=12)
         url = urlparse(hotp.provisioning_uri())
         self.assertEqual(url.scheme, "otpauth")
         self.assertEqual(url.netloc, "hotp")
         self.assertEqual(url.path, "/mark%40percival")
-        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "counter": "12"})
+        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", "counter": "12"})
         self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
 
-        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival", issuer="FooCorp!")
+        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival", issuer="FooCorp!")
         url = urlparse(hotp.provisioning_uri())
         self.assertEqual(url.scheme, "otpauth")
         self.assertEqual(url.netloc, "hotp")
         self.assertEqual(url.path, "/FooCorp%21:mark%40percival")
         self.assertEqual(
-            dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "counter": "0", "issuer": "FooCorp!"}
+            dict(parse_qsl(url.query)),
+            {"secret": "wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", "counter": "0", "issuer": "FooCorp!"},
         )
         self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
 
@@ -181,7 +204,7 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(hotp.provisioning_uri(), pyotp.parse_uri(hotp.provisioning_uri()).provisioning_uri())
 
         # initial_count=0 must be respected even though 0 is falsy
-        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqr", name="mark@percival", initial_count=7)
+        hotp = pyotp.HOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival", initial_count=7)
         url = urlparse(hotp.provisioning_uri(initial_count=0))
         self.assertEqual(dict(parse_qsl(url.query))["counter"], "0")
 
@@ -248,18 +271,18 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
         self.assertEqual(totp.at(1234567890), "005924")
         self.assertEqual(totp.at(2000000000), "279037")
 
-    def test_match_google_authenticator_output(self):
-        totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
-        with patch("pyotp.totp.time.time", return_value=1297553958):
-            self.assertEqual(totp.now(), "102705")
+    def test_reject_legacy_google_authenticator_secret(self):
+        # This non-RFC 80-bit fixture produced 102705 at Unix timestamp 1297553958.
+        with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+            pyotp.TOTP("wrn3pqx5uqxqvnqr")
 
     def test_validate_totp(self):
-        totp = pyotp.TOTP("wrn3pqx5uqxqvnqr")
+        totp = pyotp.TOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr")
         with patch("pyotp.totp.time.time", return_value=1297553958):
-            self.assertTrue(totp.verify("102705"))
-            self.assertTrue(totp.verify("102705"))
+            self.assertTrue(totp.verify("415823"))
+            self.assertTrue(totp.verify("415823"))
         with patch("pyotp.totp.time.time", return_value=1297553958 + 30):
-            self.assertFalse(totp.verify("102705"))
+            self.assertFalse(totp.verify("415823"))
 
     def test_input_before_epoch(self):
         totp = pyotp.TOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
@@ -276,20 +299,22 @@ class TOTPExampleValuesFromTheRFC(unittest.TestCase):
             self.assertFalse(totp.verify("050471"))
 
     def test_provisioning_uri(self):
-        totp = pyotp.TOTP("wrn3pqx5uqxqvnqr", name="mark@percival")
+        totp = pyotp.TOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival")
         url = urlparse(totp.provisioning_uri())
         self.assertEqual(url.scheme, "otpauth")
         self.assertEqual(url.netloc, "totp")
         self.assertEqual(url.path, "/mark%40percival")
-        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr"})
+        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr"})
         self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
 
-        totp = pyotp.TOTP("wrn3pqx5uqxqvnqr", name="mark@percival", issuer="FooCorp!")
+        totp = pyotp.TOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival", issuer="FooCorp!")
         url = urlparse(totp.provisioning_uri())
         self.assertEqual(url.scheme, "otpauth")
         self.assertEqual(url.netloc, "totp")
         self.assertEqual(url.path, "/FooCorp%21:mark%40percival")
-        self.assertEqual(dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqr", "issuer": "FooCorp!"})
+        self.assertEqual(
+            dict(parse_qsl(url.query)), {"secret": "wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", "issuer": "FooCorp!"}
+        )
         self.assertEqual(totp.provisioning_uri(), pyotp.parse_uri(totp.provisioning_uri()).provisioning_uri())
 
         key = "c7uxuqhgflpw7oruedmglbrk7u6242vb"
@@ -560,13 +585,27 @@ class TOTPTimecode(unittest.TestCase):
 
 
 class SteamTOTP(unittest.TestCase):
-    def test_match_examples(self):
-        steam = pyotp.contrib.Steam("BASE32SECRET3232")
+    def test_reject_legacy_example_secret(self):
+        # Preserve the old non-RFC known-answer vectors, whose key is only 80 bits.
+        for timestamp, code in (
+            (0, "2TC8B"),
+            (30, "YKKK4"),
+            (60, "M4HQB"),
+            (90, "DTVB3"),
+            (1662883100, "N3G63"),
+            (946681223, "7VP3X"),
+        ):
+            with self.subTest(timestamp=timestamp, code=code):
+                with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+                    pyotp.contrib.Steam("BASE32SECRET3232")
 
-        self.assertEqual(steam.at(0), "2TC8B")
-        self.assertEqual(steam.at(30), "YKKK4")
-        self.assertEqual(steam.at(60), "M4HQB")
-        self.assertEqual(steam.at(90), "DTVB3")
+    def test_match_examples(self):
+        steam = pyotp.contrib.Steam("BASE32SECRET32323232323232")
+
+        self.assertEqual(steam.at(0), "WYMY2")
+        self.assertEqual(steam.at(30), "HG48B")
+        self.assertEqual(steam.at(60), "WTM99")
+        self.assertEqual(steam.at(90), "BKYDG")
 
         steam = pyotp.contrib.Steam("FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW")
 
@@ -576,16 +615,16 @@ class SteamTOTP(unittest.TestCase):
         self.assertEqual(steam.at(90), "JG3T3")
 
     def test_verify(self):
-        steam = pyotp.contrib.Steam("BASE32SECRET3232")
+        steam = pyotp.contrib.Steam("BASE32SECRET32323232323232")
         with patch("pyotp.totp.time.time", return_value=1662883100):
-            self.assertTrue(steam.verify("N3G63"))
+            self.assertTrue(steam.verify("FW33J"))
         with patch("pyotp.totp.time.time", return_value=1662883100 + 30):
-            self.assertFalse(steam.verify("N3G63"))
+            self.assertFalse(steam.verify("FW33J"))
 
         with patch("pyotp.totp.time.time", return_value=946681223):
-            self.assertTrue(steam.verify("7VP3X"))
+            self.assertTrue(steam.verify("BDJKQ"))
         with patch("pyotp.totp.time.time", return_value=946681223 + 30):
-            self.assertFalse(steam.verify("7VP3X"))
+            self.assertFalse(steam.verify("BDJKQ"))
 
         steam = pyotp.contrib.Steam("FMXNK4QEGKVPULRTADY6JIDK5VHUBGZW")
         with patch("pyotp.totp.time.time", return_value=1662884261):
@@ -638,11 +677,11 @@ class StringComparisonTest(CompareDigestTest):
 class OTPInputSizeTest(unittest.TestCase):
     def test_oversized_otp_is_not_normalized(self):
         oversized = "\u0301\u0323" * 32768
-        hotp = pyotp.HOTP("ABCDEFGHABCDEFGH")
+        hotp = pyotp.HOTP("ABCDEFGHABCDEFGHABCDEFGH")
         with patch("pyotp.utils.unicodedata.normalize") as normalize:
             self.assertFalse(hotp.verify(oversized, 6))
             for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
-                totp = otp_type("ABCDEFGHABCDEFGH")
+                totp = otp_type("ABCDEFGHABCDEFGHABCDEFGH")
                 for valid_window in (0, 1):
                     with self.subTest(otp_type=otp_type, valid_window=valid_window):
                         self.assertFalse(totp.verify(oversized, for_time=200, valid_window=valid_window))
@@ -657,14 +696,14 @@ class OTPInputSizeTest(unittest.TestCase):
         )
         for digits in (6, 8, 10):
             with self.subTest(digits=digits):
-                hotp = pyotp.HOTP("ABCDEFGHABCDEFGH", digits=digits)
+                hotp = pyotp.HOTP("ABCDEFGHABCDEFGHABCDEFGH", digits=digits)
                 self.assertTrue(hotp.verify(hotp.at(6).translate(fullwidth), 6))
-                totp = pyotp.TOTP("ABCDEFGHABCDEFGH", digits=digits)
+                totp = pyotp.TOTP("ABCDEFGHABCDEFGHABCDEFGH", digits=digits)
                 code = totp.at(200).translate(fullwidth)
                 self.assertTrue(totp.verify(code, for_time=200))
                 self.assertEqual(totp.verify_and_get_timecode(code, for_time=200), 6)
 
-        steam = pyotp.contrib.Steam("ABCDEFGHABCDEFGH")
+        steam = pyotp.contrib.Steam("ABCDEFGHABCDEFGHABCDEFGH")
         code = steam.at(200).translate(fullwidth)
         self.assertTrue(steam.verify(code, for_time=200))
         self.assertEqual(steam.verify_and_get_timecode(code, for_time=200), 6)
@@ -672,32 +711,32 @@ class OTPInputSizeTest(unittest.TestCase):
 
 class CounterOffsetTest(unittest.TestCase):
     def test_counter_offset(self):
-        totp = pyotp.TOTP("ABCDEFGHABCDEFGH")
-        self.assertEqual(totp.at(200), "764328")
-        self.assertEqual(totp.at(200, counter_offset=1), "381901")
+        totp = pyotp.TOTP("ABCDEFGHABCDEFGHABCDEFGH")
+        self.assertEqual(totp.at(200), "823229")
+        self.assertEqual(totp.at(200, counter_offset=1), "797869")
 
 
 class ValidWindowTest(unittest.TestCase):
     def test_valid_window(self):
-        totp = pyotp.TOTP("ABCDEFGHABCDEFGH")
-        self.assertTrue(totp.verify("287719", for_time=200, valid_window=1))
-        self.assertTrue(totp.verify("764328", for_time=200, valid_window=1))
-        self.assertTrue(totp.verify("381901", for_time=200, valid_window=1))
-        self.assertFalse(totp.verify("370589", for_time=200, valid_window=1))
+        totp = pyotp.TOTP("ABCDEFGHABCDEFGHABCDEFGH")
+        self.assertTrue(totp.verify("549250", for_time=200, valid_window=1))
+        self.assertTrue(totp.verify("823229", for_time=200, valid_window=1))
+        self.assertTrue(totp.verify("797869", for_time=200, valid_window=1))
+        self.assertFalse(totp.verify("449527", for_time=200, valid_window=1))
 
 
 class GetTimeCodeTest(unittest.TestCase):
     def test_timecode(self):
-        totp = pyotp.TOTP("ABCDEFGHABCDEFGH")
-        self.assertEqual(totp.verify_and_get_timecode("287719", for_time=200, valid_window=1), 5)
-        self.assertEqual(totp.verify_and_get_timecode("764328", for_time=200, valid_window=1), 6)
-        self.assertEqual(totp.verify_and_get_timecode("381901", for_time=200, valid_window=1), 7)
+        totp = pyotp.TOTP("ABCDEFGHABCDEFGHABCDEFGH")
+        self.assertEqual(totp.verify_and_get_timecode("549250", for_time=200, valid_window=1), 5)
+        self.assertEqual(totp.verify_and_get_timecode("823229", for_time=200, valid_window=1), 6)
+        self.assertEqual(totp.verify_and_get_timecode("797869", for_time=200, valid_window=1), 7)
         with self.assertRaises(pyotp.OTPVerificationError):
-            totp.verify_and_get_timecode("370589", for_time=200, valid_window=1)
+            totp.verify_and_get_timecode("449527", for_time=200, valid_window=1)
 
     def test_invalid_otp(self):
         for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
-            totp = otp_type("ABCDEFGHABCDEFGH")
+            totp = otp_type("ABCDEFGHABCDEFGHABCDEFGH")
             for valid_window in (0, 1):
                 for code in ("", "invalid"):
                     with self.subTest(otp_type=otp_type, valid_window=valid_window, code=code):
@@ -708,7 +747,7 @@ class GetTimeCodeTest(unittest.TestCase):
 
     def test_current_time(self):
         for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
-            totp = otp_type("ABCDEFGHABCDEFGH")
+            totp = otp_type("ABCDEFGHABCDEFGHABCDEFGH")
             with self.subTest(otp_type=otp_type):
                 with patch("pyotp.totp.time.time", return_value=0):
                     matched = totp.verify_and_get_timecode(totp.at(0))
@@ -718,9 +757,9 @@ class GetTimeCodeTest(unittest.TestCase):
                         totp.verify_and_get_timecode("invalid")
 
     def test_negative_window(self):
-        totp = pyotp.TOTP("ABCDEFGHABCDEFGH")
+        totp = pyotp.TOTP("ABCDEFGHABCDEFGHABCDEFGH")
         with self.assertRaisesRegex(ValueError, "valid_window cannot be negative"):
-            totp.verify_and_get_timecode("764328", for_time=200, valid_window=-1)
+            totp.verify_and_get_timecode("823229", for_time=200, valid_window=-1)
 
 
 class DigestFunctionTest(unittest.TestCase):
@@ -740,6 +779,16 @@ class DigestFunctionTest(unittest.TestCase):
 
 
 class ParseUriTest(unittest.TestCase):
+    def test_invalid_secrets_are_rejected(self):
+        for otp_type, encoder in (("hotp", None), ("totp", None), ("totp", "steam")):
+            for secret in ("wrn3pqx5uqxqvnqr", "SOME_SECRET"):
+                query = {"secret": secret}
+                if encoder is not None:
+                    query["encoder"] = encoder
+                with self.subTest(otp_type=otp_type, encoder=encoder, secret=secret):
+                    with self.assertRaises(ValueError):
+                        pyotp.parse_uri(f"otpauth://{otp_type}/Example?" + urlencode(query))
+
     def test_duplicate_security_parameters(self):
         seed = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
         parameters = {
@@ -805,65 +854,66 @@ class ParseUriTest(unittest.TestCase):
         self.assertEqual("Invalid value for algorithm, must be SHA1, SHA256 or SHA512", str(cm.exception))
 
     def test_parse_steam(self):
-        otp = pyotp.parse_uri("otpauth://totp/Steam:?secret=SOME_SECRET&encoder=steam")
+        otp = pyotp.parse_uri("otpauth://totp/Steam:?secret=JBSWY3DPEHPK3PXPJBSWY3DP&encoder=steam")
         self.assertEqual(type(otp), pyotp.contrib.Steam)
 
-        otp = pyotp.parse_uri("otpauth://totp/Steam:?secret=SOME_SECRET")
+        otp = pyotp.parse_uri("otpauth://totp/Steam:?secret=JBSWY3DPEHPK3PXPJBSWY3DP")
         self.assertNotEqual(type(otp), pyotp.contrib.Steam)
 
     @unittest.skipIf(sys.version_info < (3, 6), "Skipping test that requires deterministic dict key enumeration")
     def test_algorithms(self):
-        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQ")
+        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQGEZDGNBV")
         self.assertEqual(hashlib.sha1, otp.digest)
-        self.assertEqual(otp.at(0), "891490")
-        self.assertEqual(otp.at(30), "263420")
-        self.assertEqual(otp.at(60), "092045")
-        self.assertEqual(otp.provisioning_uri(), "otpauth://totp/Secret?secret=GEZDGNBVGY3TQOJQ")
-        self.assertEqual(
-            otp.provisioning_uri(name="n", issuer_name="i"), "otpauth://totp/i:n?secret=GEZDGNBVGY3TQOJQ&issuer=i"
-        )
-
-        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQ&period=60")
-        self.assertEqual(hashlib.sha1, otp.digest)
-        self.assertEqual(otp.at(30), "891490")
-        self.assertEqual(otp.at(60), "263420")
+        self.assertEqual(otp.at(0), "222574")
+        self.assertEqual(otp.at(30), "617190")
+        self.assertEqual(otp.at(60), "624752")
+        self.assertEqual(otp.provisioning_uri(), "otpauth://totp/Secret?secret=GEZDGNBVGY3TQOJQGEZDGNBV")
         self.assertEqual(
             otp.provisioning_uri(name="n", issuer_name="i"),
-            "otpauth://totp/i:n?secret=GEZDGNBVGY3TQOJQ&issuer=i&period=60",
+            "otpauth://totp/i:n?secret=GEZDGNBVGY3TQOJQGEZDGNBV&issuer=i",
         )
 
-        otp = pyotp.parse_uri("otpauth://hotp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQ")
+        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQGEZDGNBV&period=60")
         self.assertEqual(hashlib.sha1, otp.digest)
-        self.assertEqual(otp.at(0), "891490")
-        self.assertEqual(otp.at(1), "263420")
-        self.assertEqual(otp.at(2), "092045")
+        self.assertEqual(otp.at(30), "222574")
+        self.assertEqual(otp.at(60), "617190")
         self.assertEqual(
             otp.provisioning_uri(name="n", issuer_name="i"),
-            "otpauth://hotp/i:n?secret=GEZDGNBVGY3TQOJQ&issuer=i&counter=0",
+            "otpauth://totp/i:n?secret=GEZDGNBVGY3TQOJQGEZDGNBV&issuer=i&period=60",
         )
 
-        otp = pyotp.parse_uri("otpauth://hotp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQ&counter=1")
+        otp = pyotp.parse_uri("otpauth://hotp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQGEZDGNBV")
         self.assertEqual(hashlib.sha1, otp.digest)
-        self.assertEqual(otp.at(0), "263420")
-        self.assertEqual(otp.at(1), "092045")
+        self.assertEqual(otp.at(0), "222574")
+        self.assertEqual(otp.at(1), "617190")
+        self.assertEqual(otp.at(2), "624752")
         self.assertEqual(
             otp.provisioning_uri(name="n", issuer_name="i"),
-            "otpauth://hotp/i:n?secret=GEZDGNBVGY3TQOJQ&issuer=i&counter=1",
+            "otpauth://hotp/i:n?secret=GEZDGNBVGY3TQOJQGEZDGNBV&issuer=i&counter=0",
         )
 
-        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA256&secret=GEZDGNBVGY3TQOJQ")
+        otp = pyotp.parse_uri("otpauth://hotp?algorithm=SHA1&secret=GEZDGNBVGY3TQOJQGEZDGNBV&counter=1")
+        self.assertEqual(hashlib.sha1, otp.digest)
+        self.assertEqual(otp.at(0), "617190")
+        self.assertEqual(otp.at(1), "624752")
+        self.assertEqual(
+            otp.provisioning_uri(name="n", issuer_name="i"),
+            "otpauth://hotp/i:n?secret=GEZDGNBVGY3TQOJQGEZDGNBV&issuer=i&counter=1",
+        )
+
+        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA256&secret=GEZDGNBVGY3TQOJQGEZDGNBV")
         self.assertEqual(hashlib.sha256, otp.digest)
-        self.assertEqual(otp.at(0), "676474")
-        self.assertEqual(otp.at(9000), "741948")
+        self.assertEqual(otp.at(0), "250920")
+        self.assertEqual(otp.at(9000), "306580")
 
-        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA512&secret=GEZDGNBVGY3TQOJQ")
+        otp = pyotp.parse_uri("otpauth://totp?algorithm=SHA512&secret=GEZDGNBVGY3TQOJQGEZDGNBV")
         self.assertEqual(hashlib.sha512, otp.digest)
-        self.assertEqual(otp.at(0), "453912")
-        self.assertEqual(otp.at(9000), "919599")
+        self.assertEqual(otp.at(0), "852316")
+        self.assertEqual(otp.at(9000), "833405")
 
         self.assertEqual(
             otp.provisioning_uri(name="n", issuer_name="i", image="https://test.net/test.png"),
-            "otpauth://totp/i:n?secret=GEZDGNBVGY3TQOJQ&issuer=i&algorithm=SHA512&image=https%3A%2F%2Ftest.net%2Ftest.png",
+            "otpauth://totp/i:n?secret=GEZDGNBVGY3TQOJQGEZDGNBV&issuer=i&algorithm=SHA512&image=https%3A%2F%2Ftest.net%2Ftest.png",
         )
         with self.assertRaises(ValueError):
             otp.provisioning_uri(name="n", issuer_name="i", image="nourl")
@@ -888,31 +938,31 @@ class ParseUriTest(unittest.TestCase):
         self.assertEqual(otp.at(60), "R3WQY")
         self.assertEqual(otp.at(90), "JG3T3")
 
-        pyotp.parse_uri("otpauth://totp?secret=abc&image=foobar")
+        pyotp.parse_uri("otpauth://totp?secret=JBSWY3DPEHPK3PXPJBSWY3DP&image=foobar")
 
     def test_parse_encoded_colon_in_label(self):
         # Regression test for issue #174: an encoded colon (%3A) inside the
         # issuer or account name must not be treated as the issuer:account
         # separator. The label issuer and the query issuer should still match.
         otp = pyotp.parse_uri(
-            "otpauth://totp/Text%3A%20More%20Text:Secret?secret=FFFFFFFAAAAAABBBBBBB&issuer=Text%3A%20More%20Text"
+            "otpauth://totp/Text%3A%20More%20Text:Secret?secret=FFFFFFFAAAAAABBBBBBBCCCC&issuer=Text%3A%20More%20Text"
         )
         self.assertEqual(otp.name, "Secret")
         self.assertEqual(otp.issuer, "Text: More Text")
 
         # An encoded colon in the account name (no issuer) is kept intact.
-        otp = pyotp.parse_uri("otpauth://totp/a%3Ab?secret=GEZDGNBVGY3TQOJQ")
+        otp = pyotp.parse_uri("otpauth://totp/a%3Ab?secret=GEZDGNBVGY3TQOJQGEZDGNBV")
         self.assertEqual(otp.name, "a:b")
         self.assertIsNone(otp.issuer)
 
         # Round-trip: building the URI and parsing it back preserves both parts.
-        source = pyotp.TOTP("FFFFFFFAAAAAABBBBBBB", name="Secret", issuer="Text: More Text")
+        source = pyotp.TOTP("FFFFFFFAAAAAABBBBBBBCCCC", name="Secret", issuer="Text: More Text")
         roundtrip = pyotp.parse_uri(source.provisioning_uri())
         self.assertEqual(roundtrip.name, "Secret")
         self.assertEqual(roundtrip.issuer, "Text: More Text")
 
         # A percent-encoded space in a plain issuer (no colon) still decodes.
-        otp = pyotp.parse_uri("otpauth://totp/Big%20Corp:bob?secret=GEZDGNBVGY3TQOJQ&issuer=Big%20Corp")
+        otp = pyotp.parse_uri("otpauth://totp/Big%20Corp:bob?secret=GEZDGNBVGY3TQOJQGEZDGNBV&issuer=Big%20Corp")
         self.assertEqual(otp.name, "bob")
         self.assertEqual(otp.issuer, "Big Corp")
 
