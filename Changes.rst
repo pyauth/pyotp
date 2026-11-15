@@ -1,3 +1,10 @@
+Changes for v2.11.2 (2026-11-14)
+================================
+
+-  Validate OTP configuration and URI parameters (#203)
+
+-  Harden OTP verification APIs and document replay prevention (#202)
+
 Changes for v2.11.1 (2026-11-14)
 ================================
 
