@@ -143,33 +143,6 @@ Some applications want the secret key to be formatted as a hex-encoded string:
 
     pyotp.random_hex()  # returns a 40-character hex-encoded secret
 
-Secret strength and hash functions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-`NIST SP 800-63B-4 section 3.1.4.1 <https://pages.nist.gov/800-63-4/sp800-63b.html>`_
-requires the OTP key and algorithm to provide at least 112 bits of security strength; section 3.1.4.2 describes
-verifier requirements. PyOTP rejects secrets shorter than 112 bits (14 bytes) after Base32 decoding when generating
-or verifying an OTP. Character count alone is not the check, and sufficient length does not establish entropy.
-Generate a fresh random secret for each credential with ``random_base32()``, whose default is 160 bits.
-The recognizable seeds in this README are public teaching examples, not production secrets.
-
-PyOTP uses HMAC hash functions, not encryption ciphers. The URI parser supports SHA-1, SHA-256, and SHA-512.
-`NIST SP 800-131A Rev. 2 sections 9 and 10 <https://doi.org/10.6028/NIST.SP.800-131Ar2>`_ permit these for HMAC
-with keys of at least 112 bits. SHA-1 remains the interoperability default, but NIST recommends migrating to SHA-2
-or SHA-3 and has announced a `SHA-1 transition by December 31, 2030
-<https://csrc.nist.gov/projects/hash-functions/nist-policy-on-hash-functions>`_. Use SHA-256 or SHA-512 when both
-the authenticator and verifier support it.
-
-The ``digest`` argument also accepts other compatible hash implementations; it does not enforce a NIST allowlist.
-SHA-224, SHA-384, SHA-512/224, SHA-512/256, and the four fixed-length SHA-3 functions are on the
-`NIST approved hash list <https://csrc.nist.gov/projects/hash-functions>`_. BLAKE2b, BLAKE2s, SM3, RIPEMD-160,
-and MD5-SHA1 are not on that list, even where the Python/OpenSSL installation lets PyOTP use them.
-MD5 and SHAKE are not supported OTP digests. Passing a key-length check alone does not establish NIST conformance.
-
-The RFC 4226 and RFC 6238 test vectors use 160-, 256-, or 512-bit keys and meet the key-length requirement.
-Their published, predictable keys are only suitable for testing. Legacy 80-bit example seeds do not meet the
-requirement and must be replaced through re-enrollment, not by padding an existing production secret.
-
 Google Authenticator Compatible
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
