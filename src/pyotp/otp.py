@@ -27,8 +27,6 @@ class OTP:
         if digest in [hashlib.md5, hashlib.shake_128]:
             raise ValueError("selected digest function must generate digest size greater than or equals to 18 bytes")
         self.secret = s
-        # Validate the seed now rather than waiting until OTP generation.
-        self.byte_secret()
         self.name = name or "Secret"
         self.issuer = issuer
 
@@ -58,10 +56,7 @@ class OTP:
         missing_padding = len(secret) % 8
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
-        decoded = base64.b32decode(secret, casefold=True)
-        if len(decoded) < 16:
-            raise ValueError("Secrets must be at least 128 bits after decoding")
-        return decoded
+        return base64.b32decode(secret, casefold=True)
 
     @staticmethod
     def int_to_bytestring(i: int, *, padding: int = 8) -> bytes:
