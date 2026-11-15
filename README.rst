@@ -29,11 +29,11 @@ minimum, application implementers should follow this checklist:
   of credentials to relying party IDs (application origin/domain names), U2F adds protection against phishing attacks.
   One implementation of FIDO U2F/WebAuthn is PyOTP's sister project, `PyWARP <https://github.com/pyauth/pywarp>`_.
 
-We also recommend that implementers read the
-`OWASP Authentication Cheat Sheet
-<https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Authentication_Cheat_Sheet.md>`_ and
-`NIST SP 800-63 Digital Identity Guidelines <https://pages.nist.gov/800-63-4/>`_ for a high level overview of
-authentication best practices.
+We also recommend that implementers read `NIST SP 800-63 Digital Identity Guidelines <https://pages.nist.gov/800-63-4/>`_,
+including sections 3.1.4 (Single-Factor OTP) and 3.1.5 (Multi-Factor OTPs), for an in-depth discussion of authentication,
+as well as the `OWASP Authentication Cheat Sheet
+<https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Authentication_Cheat_Sheet.md>`_ for a high level
+overview of authentication best practices.
 
 Quick overview of using One Time Passwords on your phone
 --------------------------------------------------------
