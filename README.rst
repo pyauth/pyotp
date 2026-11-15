@@ -32,7 +32,7 @@ minimum, application implementers should follow this checklist:
 We also recommend that implementers read the
 `OWASP Authentication Cheat Sheet
 <https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Authentication_Cheat_Sheet.md>`_ and
-`NIST SP 800-63-3: Digital Authentication Guideline <https://pages.nist.gov/800-63-3/>`_ for a high level overview of
+`NIST SP 800-63 Digital Identity Guidelines <https://pages.nist.gov/800-63-4/>`_ for a high level overview of
 authentication best practices.
 
 Quick overview of using One Time Passwords on your phone
@@ -209,7 +209,7 @@ Links
 * `ROTP <https://github.com/mdp/rotp>`_ - Original Ruby OTP library by `Mark Percival <https://github.com/mdp>`_
 * `OTPHP <https://github.com/lelag/otphp>`_ - PHP port of ROTP by `Le Lag <https://github.com/lelag>`_
 * `OWASP Authentication Cheat Sheet <https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Authentication_Cheat_Sheet.md>`_
-* `NIST SP 800-63-3: Digital Authentication Guideline <https://pages.nist.gov/800-63-3/>`_
+* `NIST SP 800-63 Digital Identity Guidelines <https://pages.nist.gov/800-63-4/>`_
 
 For new applications:
 
