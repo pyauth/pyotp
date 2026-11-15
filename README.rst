@@ -56,6 +56,12 @@ Usage
 
 Time-based OTPs
 ~~~~~~~~~~~~~~~
+
+The ``interval`` must be greater than zero and no more than 120 seconds; the default is 30 seconds.
+`NIST SP 800-63B-4 section 3.1.4.1 <https://pages.nist.gov/800-63-4/sp800-63b.html>`_ requires a time-based
+nonce to change at least once every two minutes. This limits the generation interval, not the total acceptance
+window: choose ``valid_window`` to allow for clock drift and entry delays as described in section 3.1.4.2.
+
 .. code:: python
 
     import pyotp
