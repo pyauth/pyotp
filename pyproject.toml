@@ -2,7 +2,7 @@
 name = "PyOTP"
 description = "Python One Time Password Library"
 readme = "README.rst"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Andrey Kislyuk"}, {email = "kislyuk@gmail.com" }]
