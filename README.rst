@@ -224,17 +224,6 @@ For new applications:
 Versioning
 ~~~~~~~~~~
 This package follows the `Semantic Versioning 2.0.0 <http://semver.org/>`_ standard. To control changes, it is
-recommended that application developers pin the package version and manage it using `pip-tools
-<https://github.com/jazzband/pip-tools>`_ or similar. For library developers, pinning the major version is
+recommended that application developers pin the package version and manage it using `uv
+<https://github.com/astral-sh/uv>`_ or similar. For library developers, pinning the major version is
 recommended.
-
-.. image:: https://github.com/pyauth/pyotp/workflows/Python%20package/badge.svg
-        :target: https://github.com/pyauth/pyotp/actions
-.. image:: https://img.shields.io/codecov/c/github/pyauth/pyotp/master.svg
-        :target: https://codecov.io/github/pyauth/pyotp?branch=master
-.. image:: https://img.shields.io/pypi/v/pyotp.svg
-        :target: https://pypi.python.org/pypi/pyotp
-.. image:: https://img.shields.io/pypi/l/pyotp.svg
-        :target: https://pypi.python.org/pypi/pyotp
-.. image:: https://readthedocs.org/projects/pyotp/badge/?version=latest
-        :target: https://pyotp.readthedocs.io/
