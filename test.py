@@ -32,6 +32,50 @@ class OTPConfigurationTest(unittest.TestCase):
                             self.assertEqual(otp.byte_secret(), raw)
                             self.assertEqual(len(otp.generate_otp(0)), 5 if otp_type is pyotp.contrib.Steam else 6)
 
+    def test_subclass_minimum_seed_length(self):
+        for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP, pyotp.contrib.Steam):
+            for minimum_bits in (80, 113, 128, 160):
+
+                class CustomOTP(otp_type):
+                    min_secret_length_bits: ClassVar[int] = minimum_bits
+
+                minimum_bytes = (minimum_bits + 7) // 8
+                for length in (minimum_bytes - 1, minimum_bytes, minimum_bytes + 1):
+                    raw = bytes(range(length))
+                    encoded = base64.b32encode(raw).decode("ascii")
+                    for seed in (encoded, encoded.rstrip("="), encoded.lower()):
+                        with self.subTest(otp_type=otp_type, minimum_bits=minimum_bits, length=length, seed=seed):
+                            if length < minimum_bytes:
+                                with self.assertRaisesRegex(ValueError, f"at least {minimum_bits} bits after decoding"):
+                                    CustomOTP(seed)
+                            else:
+                                otp = CustomOTP(seed)
+                                self.assertEqual(otp.byte_secret(), raw)
+                                self.assertEqual(len(otp.generate_otp(0)), 5 if otp_type is pyotp.contrib.Steam else 6)
+                self.assertEqual(otp_type.min_secret_length_bits, 112)
+
+    def test_subclass_minimum_seed_length_after_secret_change(self):
+        for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP, pyotp.contrib.Steam):
+
+            class CustomOTP(otp_type):
+                min_secret_length_bits: ClassVar[int] = 128
+
+            with self.subTest(otp_type=otp_type):
+                otp = CustomOTP(base64.b32encode(bytes(range(16))).decode("ascii"))
+                otp.secret = base64.b32encode(bytes(range(15))).decode("ascii")
+                with self.assertRaisesRegex(ValueError, "at least 128 bits after decoding"):
+                    otp.generate_otp(0)
+                self.assertEqual(len(otp_type(otp.secret).byte_secret()), 15)
+
+    def test_lower_minimum_seed_length_preserves_base32_validation(self):
+        class CustomOTP(pyotp.OTP):
+            min_secret_length_bits: ClassVar[int] = 8
+
+        for secret in ("SOME_SECRET", "abc", "!" * 32):
+            with self.subTest(secret=secret):
+                with self.assertRaises(ValueError):
+                    CustomOTP(secret)
+
     def test_invalid_base32_is_rejected_at_construction(self):
         for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP, pyotp.contrib.Steam):
             for secret in ("SOME_SECRET", "abc", "!" * 32):

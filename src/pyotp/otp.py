@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-from typing import Any
+from typing import Any, ClassVar
 
 
 class OTP:
@@ -11,7 +11,10 @@ class OTP:
     Base class for OTP handlers.
 
     The Base32 secret and its decoded length are validated at construction.
+    Subclasses can override ``min_secret_length_bits`` to adjust the minimum decoded secret length.
     """
+
+    min_secret_length_bits: ClassVar[int] = 112
 
     def __init__(
         self,
@@ -56,7 +59,7 @@ class OTP:
         return str_code[-self.digits :]
 
     def byte_secret(self) -> bytes:
-        """Decode the secret and enforce a minimum key length of 112 bits.
+        """Decode the secret and enforce ``min_secret_length_bits`` (112 bits by default).
 
         See NIST SP 800-63B-4, sections 3.1.4.1 and 3.1.4.2:
         https://pages.nist.gov/800-63-4/sp800-63b.html
@@ -66,8 +69,8 @@ class OTP:
         if missing_padding != 0:
             secret += "=" * (8 - missing_padding)
         decoded = base64.b32decode(secret, casefold=True)
-        if len(decoded) < 14:
-            raise ValueError("Secrets must be at least 112 bits after decoding")
+        if len(decoded) * 8 < self.min_secret_length_bits:
+            raise ValueError(f"Secrets must be at least {self.min_secret_length_bits} bits after decoding")
         return decoded
 
     @staticmethod
