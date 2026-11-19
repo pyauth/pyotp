@@ -1,3 +1,8 @@
+Changes for v2.12.1 (2026-11-18)
+================================
+
+-  Allow subclasses to override minimum secret length (#208)
+
 Changes for v2.12.0 (2026-11-15)
 ================================
 
