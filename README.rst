@@ -149,6 +149,32 @@ Some applications want the secret key to be formatted as a hex-encoded string:
 
     pyotp.random_hex()  # returns a 40-character hex-encoded secret
 
+Adjusting the minimum seed length
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`RFC 4226, section 4 <https://www.rfc-editor.org/rfc/rfc4226#section-4>`_ requires a minimum seed length of 128 bits
+and recommends 160 bits. `NIST SP 800-63B-4, section 3.1.4.1
+<https://pages.nist.gov/800-63-4/sp800-63b/authenticators/#sf-otp>`_ requires the secret key and its algorithm to
+provide at least 112 bits of security strength. By default, PyOTP checks that secret inputs are at least 112 bits
+long after Base32 decoding. To specify a different minimum seed length, subclass ``pyotp.TOTP`` or ``pyotp.HOTP``
+and adjust the ``min_secret_length_bits`` class variable inherited from ``pyotp.OTP``:
+
+.. code:: python
+
+    import pyotp
+
+    class TOTP128(pyotp.TOTP):
+        min_secret_length_bits = 128
+
+    class HOTP128(pyotp.HOTP):
+        min_secret_length_bits = 128
+
+    secret = pyotp.random_base32()
+    totp = TOTP128(secret)
+    hotp = HOTP128(secret)
+
+The minimum applies when constructing an instance and whenever its secret is decoded to generate or verify an OTP.
+
 Google Authenticator Compatible
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
