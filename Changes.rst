@@ -1,3 +1,8 @@
+Changes for v2.12.2 (2026-11-26)
+================================
+
+- Restore positional provisioning names and add URI factories (#210)
+
 Changes for v2.12.1 (2026-11-18)
 ================================
 
