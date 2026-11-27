@@ -150,7 +150,7 @@ class TOTP(OTP):
                 return timecode + i
         raise OTPVerificationError("OTP verification failed")
 
-    def provisioning_uri(self, *, name: str | None = None, issuer_name: str | None = None, **kwargs: Any) -> str:
+    def provisioning_uri(self, name: str | None = None, *, issuer_name: str | None = None, **kwargs: Any) -> str:
         """
         Returns the provisioning URI for the OTP.  This can then be
         encoded in a QR Code and used to provision an OTP app like

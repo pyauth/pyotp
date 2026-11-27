@@ -131,8 +131,8 @@ Counter-based OTPs
     hotp.at(1401) # => '666948'
 
     # OTP verified with a counter
-    hotp.verify('666948', 1401) # => True
-    hotp.verify('666948', 1402) # => False
+    hotp.verify('666948', counter=1401) # => True
+    hotp.verify('666948', counter=1402) # => False
 
 Generating a Secret Key
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -220,6 +220,9 @@ and adjust the ``min_secret_length_bits`` class variable inherited from ``pyotp.
     hotp = HOTP128(secret)
 
 The minimum applies when constructing an instance and whenever its secret is decoded to generate or verify an OTP.
+
+When importing a provisioning URI, pass your subclass to ``pyotp.parse_uri()`` as the corresponding factory,
+for example ``pyotp.parse_uri(uri, totp_factory=TOTP128, hotp_factory=HOTP128)``.
 
 Third-party contributions
 ~~~~~~~~~~~~~~~~~~~~~~~~~

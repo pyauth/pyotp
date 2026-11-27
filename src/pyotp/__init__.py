@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from re import split
 from typing import Any
 from urllib.parse import parse_qsl, unquote, urlparse
@@ -31,7 +31,7 @@ def random_hex(length: int = 40, chars: Sequence[str] = "ABCDEF0123456789") -> s
     return random_base32(length=length, chars=chars)
 
 
-def parse_uri(uri: str) -> OTP:
+def parse_uri(uri: str, *, hotp_factory: Callable[..., HOTP] = HOTP, totp_factory: Callable[..., TOTP] = TOTP) -> OTP:
     """
     Parses the provisioning URI for the OTP; works for either TOTP or HOTP.
 
@@ -39,6 +39,8 @@ def parse_uri(uri: str) -> OTP:
         https://github.com/google/google-authenticator/wiki/Key-Uri-Format
 
     :param uri: the hotp/totp URI to parse
+    :param hotp_factory: factory for HOTP URIs, defaults to :class:`~pyotp.hotp.HOTP`
+    :param totp_factory: factory for TOTP URIs, defaults to :class:`~pyotp.totp.TOTP`
     :returns: OTP object
     """
 
@@ -120,8 +122,8 @@ def parse_uri(uri: str) -> OTP:
     if encoder == "steam":
         return contrib.Steam(secret, **otp_data)
     if parsed_uri.netloc == "totp":
-        return TOTP(secret, **otp_data)
+        return totp_factory(secret, **otp_data)
     elif parsed_uri.netloc == "hotp":
-        return HOTP(secret, **otp_data)
+        return hotp_factory(secret, **otp_data)
 
     raise ValueError("Not a supported OTP type")

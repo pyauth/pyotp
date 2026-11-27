@@ -17,6 +17,16 @@ import pyotp
 
 
 class OTPConfigurationTest(unittest.TestCase):
+    def test_provisioning_uri_accepts_only_first_positional_argument(self):
+        secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
+        for otp_type in (pyotp.TOTP, pyotp.HOTP):
+            with self.subTest(otp_type=otp_type):
+                otp = otp_type(secret)
+                uri = otp.provisioning_uri("Name", issuer_name="Issuer")
+                self.assertEqual(urlparse(uri).path, "/Issuer:Name")
+                with self.assertRaises(TypeError):
+                    otp.provisioning_uri("Name", 0 if otp_type is pyotp.HOTP else "Issuer")
+
     def test_decoded_seed_length(self):
         for otp_type in (pyotp.OTP, pyotp.HOTP, pyotp.TOTP, pyotp.contrib.Steam):
             for length in (0, 1, 5, 10, 13, 14, 15, 20):
@@ -91,7 +101,7 @@ class OTPConfigurationTest(unittest.TestCase):
                 hotp = pyotp.HOTP(valid_secret)
                 hotp.secret = secret
                 with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
-                    hotp.verify("123456", 0)
+                    hotp.verify("123456", counter=0)
                 for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
                     otp = otp_type(valid_secret)
                     otp.secret = secret
@@ -184,10 +194,15 @@ class HOTPExampleValuesFromTheRFC(unittest.TestCase):
 
     def test_verify_otp_reuse(self):
         hotp = pyotp.HOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
-        self.assertTrue(hotp.verify("520489", 9))
-        self.assertTrue(hotp.verify("５２０４８９", 9))
-        self.assertFalse(hotp.verify("520489", 10))
-        self.assertFalse(hotp.verify("５２０４８９", 10))
+        self.assertTrue(hotp.verify("520489", counter=9))
+        self.assertTrue(hotp.verify("５２０４８９", counter=9))
+        self.assertFalse(hotp.verify("520489", counter=10))
+        self.assertFalse(hotp.verify("５２０４８９", counter=10))
+
+    def test_verify_counter_is_keyword_only(self):
+        hotp = pyotp.HOTP("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ")
+        with self.assertRaises(TypeError):
+            hotp.verify("520489", 9)
 
     def test_provisioning_uri(self):
         hotp = pyotp.HOTP("wrn3pqx5uqxqvnqrwrn3pqx5uqxqvnqr", name="mark@percival")
@@ -723,7 +738,7 @@ class OTPInputSizeTest(unittest.TestCase):
         oversized = "\u0301\u0323" * 32768
         hotp = pyotp.HOTP("ABCDEFGHABCDEFGHABCDEFGH")
         with patch("pyotp.utils.unicodedata.normalize") as normalize:
-            self.assertFalse(hotp.verify(oversized, 6))
+            self.assertFalse(hotp.verify(oversized, counter=6))
             for otp_type in (pyotp.TOTP, pyotp.contrib.Steam):
                 totp = otp_type("ABCDEFGHABCDEFGHABCDEFGH")
                 for valid_window in (0, 1):
@@ -741,7 +756,7 @@ class OTPInputSizeTest(unittest.TestCase):
         for digits in (6, 8, 10):
             with self.subTest(digits=digits):
                 hotp = pyotp.HOTP("ABCDEFGHABCDEFGHABCDEFGH", digits=digits)
-                self.assertTrue(hotp.verify(hotp.at(6).translate(fullwidth), 6))
+                self.assertTrue(hotp.verify(hotp.at(6).translate(fullwidth), counter=6))
                 totp = pyotp.TOTP("ABCDEFGHABCDEFGHABCDEFGH", digits=digits)
                 code = totp.at(200).translate(fullwidth)
                 self.assertTrue(totp.verify(code, for_time=200))
@@ -832,6 +847,35 @@ class ParseUriTest(unittest.TestCase):
                 with self.subTest(otp_type=otp_type, encoder=encoder, secret=secret):
                     with self.assertRaises(ValueError):
                         pyotp.parse_uri(f"otpauth://{otp_type}/Example?" + urlencode(query))
+
+    def test_hotp_factory_can_override_minimum_secret_length(self):
+        class LegacyHOTP(pyotp.HOTP):
+            min_secret_length_bits: ClassVar[int] = 80
+
+        uri = "otpauth://hotp/Issuer:Name?secret=GEZDGNBVGY3TQOJQ&issuer=Issuer&counter=7"
+        with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+            pyotp.parse_uri(uri)
+        otp = pyotp.parse_uri(uri, hotp_factory=LegacyHOTP)
+        self.assertIs(type(otp), LegacyHOTP)
+        self.assertEqual(otp.byte_secret(), b"1234567890")
+        self.assertEqual((otp.issuer, otp.name, otp.initial_count), ("Issuer", "Name", 7))
+
+    def test_totp_factory_can_override_minimum_secret_length(self):
+        class LegacyTOTP(pyotp.TOTP):
+            min_secret_length_bits: ClassVar[int] = 80
+
+        uri = "otpauth://totp/Issuer:Name?secret=GEZDGNBVGY3TQOJQ&digits=8&period=60"
+        with self.assertRaisesRegex(ValueError, "at least 112 bits after decoding"):
+            pyotp.parse_uri(uri)
+        otp = pyotp.parse_uri(uri, totp_factory=LegacyTOTP)
+        self.assertIs(type(otp), LegacyTOTP)
+        self.assertEqual(otp.byte_secret(), b"1234567890")
+        self.assertEqual((otp.issuer, otp.name, otp.digits, otp.interval), ("Issuer", "Name", 8, 60))
+
+    def test_factories_are_keyword_only(self):
+        uri = "otpauth://totp/Example?secret=GEZDGNBVGY3TQOJQGEZDGNBV"
+        with self.assertRaises(TypeError):
+            pyotp.parse_uri(uri, pyotp.HOTP, pyotp.TOTP)
 
     def test_duplicate_security_parameters(self):
         seed = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"

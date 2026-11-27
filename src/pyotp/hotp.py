@@ -47,7 +47,7 @@ class HOTP(OTP):
         """
         return self.generate_otp(self.initial_count + count)
 
-    def verify(self, otp: str, counter: int) -> bool:
+    def verify(self, otp: str, *, counter: int) -> bool:
         """
         Verifies the OTP passed in against the current counter OTP.
 
@@ -58,8 +58,8 @@ class HOTP(OTP):
 
     def provisioning_uri(
         self,
-        *,
         name: str | None = None,
+        *,
         initial_count: int | None = None,
         issuer_name: str | None = None,
         **kwargs: Any,
